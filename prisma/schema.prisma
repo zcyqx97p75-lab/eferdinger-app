@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ORGANISATOR
+  FARMER
+  PACKER
+  EG_ADMIN
+}
+
+enum CookingType {
+  FESTKOCHEND
+  VORWIEGEND_FESTKOCHEND
+  MEHLIG
+}
+
+enum OrderStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String // gehashtes Passwort
+  name      String
+  role      UserRole
+  farmer    Farmer?  @relation(fields: [farmerId], references: [id])
+  farmerId  Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Farmer {
+  id                   Int                   @id @default(autoincrement())
+  name                 String
+  farmName             String?
+  contactInfo          String?
+  users                User[]
+  deliveries           Delivery[]
+  farmerStocks         FarmerStock[]
+  farmerStockMovements FarmerStockMovement[]
+}
+
+model Customer {
+  id               Int               @id @default(autoincrement())
+  name             String
+  externalId       String? // Kundennummer Handel
+  region           String?
+  contactInfo      String?
+  orders           Order[]
+  actions          Action[]
+  prices           Price[]
+  customerProducts CustomerProduct[]
+}
+
+model Product {
+  id                   Int                   @id @default(autoincrement())
+  name                 String
+  cookingType          CookingType
+  packagingType        String
+  productNumber        String?
+  isActive             Boolean               @default(true)
+  customerProducts     CustomerProduct[]
+  deliveries           Delivery[]
+  washingRuns          WashingRun[]
+  orders               Order[]
+  packagingRuns        PackagingRun[]
+  inventories          Inventory[]
+  prices               Price[]
+  farmerStocks         FarmerStock[]
+  farmerStockMovements FarmerStockMovement[]
+}
+
+model CustomerProduct {
+  id         Int      @id @default(autoincrement())
+  customer   Customer @relation(fields: [customerId], references: [id])
+  customerId Int
+  product    Product  @relation(fields: [productId], references: [id])
+  productId  Int
+
+  // nur Produkte, die einer Kundschaft zugeordnet sind, sind dort auswählbar
+  @@unique([customerId, productId])
+}
+
+model Delivery {
+  id             Int                   @id @default(autoincrement())
+  date           DateTime
+  farmer         Farmer                @relation(fields: [farmerId], references: [id])
+  farmerId       Int
+  product        Product               @relation(fields: [productId], references: [id])
+  productId      Int
+  grossTons      Decimal
+  wasteKg        Int
+  netTons        Decimal
+  createdAt      DateTime              @default(now())
+  stockMovements FarmerStockMovement[]
+}
+
+model WashingRun {
+  id        Int      @id @default(autoincrement())
+  date      DateTime
+  product   Product  @relation(fields: [productId], references: [id])
+  productId Int
+  // aus Lager ausgebuchte Menge in t
+  usedTons  Decimal
+  // Ausschuss in kg
+  wasteKg   Int
+
+  createdAt DateTime @default(now())
+}
+
+model Order {
+  id            Int            @id @default(autoincrement())
+  customer      Customer       @relation(fields: [customerId], references: [id])
+  customerId    Int
+  product       Product        @relation(fields: [productId], references: [id])
+  productId     Int
+  orderDate     DateTime // Erfassungsdatum
+  deliveryDate  DateTime // gewünschter Liefertermin
+  orderedQty    Int // bestellte Menge (Packungen / Kisten)
+  reserveQty    Int // Reserve-Menge (Packungen / Kisten)
+  status        OrderStatus    @default(OPEN)
+  packagingRuns PackagingRun[]
+  action        Action?        @relation(fields: [actionId], references: [id])
+  actionId      Int?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model PackagingRun {
+  id            Int      @id @default(autoincrement())
+  date          DateTime
+  product       Product  @relation(fields: [productId], references: [id])
+  productId     Int
+  order         Order?   @relation(fields: [orderId], references: [id])
+  orderId       Int?
+  quantityUnits Int // Anzahl Packungen/Kisten
+  reserved      Boolean  @default(false) // true = Reserveverpackung
+  wasteKg       Int // Ausschuss in kg
+  createdAt     DateTime @default(now())
+}
+
+model Inventory {
+  id                Int      @id @default(autoincrement())
+  product           Product  @relation(fields: [productId], references: [id])
+  productId         Int
+  quantityTons      Decimal // aktueller theoretischer Lagerstand
+  asOf              DateTime // Stichtag des Bestands (für Inventur / Snapshot)
+  isManualInventory Boolean  @default(false) // true = Inventurkorrektur
+}
+
+model Action {
+  id              Int      @id @default(autoincrement())
+  customer        Customer @relation(fields: [customerId], references: [id])
+  customerId      Int
+  name            String
+  startDate       DateTime
+  endDate         DateTime
+  description     String?
+  plannedQtyUnits Int? // prognostizierte Menge (Packungen/Kisten)
+  orders          Order[]
+  createdAt       DateTime @default(now())
+}
+
+model Price {
+  id           Int       @id @default(autoincrement())
+  customer     Customer  @relation(fields: [customerId], references: [id])
+  customerId   Int
+  product      Product   @relation(fields: [productId], references: [id])
+  productId    Int
+  supplierType String // z.B. "VERTRAGSLIEFERANT" oder "FREIE_WARE"
+  pricePerUnit Decimal
+  validFrom    DateTime
+  validTo      DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([customerId, productId, validFrom])
+}
+
+model FarmerStock {
+  id           Int      @id @default(autoincrement())
+  farmer       Farmer   @relation(fields: [farmerId], references: [id])
+  farmerId     Int
+  product      Product  @relation(fields: [productId], references: [id])
+  productId    Int
+  quantityTons Decimal
+  updatedAt    DateTime @updatedAt
+
+  @@unique([farmerId, productId])
+}
+
+model FarmerStockMovement {
+  id            Int       @id @default(autoincrement())
+  farmer        Farmer    @relation(fields: [farmerId], references: [id])
+  farmerId      Int
+  product       Product   @relation(fields: [productId], references: [id])
+  productId     Int
+  changeTons    Decimal // + = Zugang, - = Abgang
+  reason        String // z.B. "INVENTORY", "DELIVERY_TO_PACKER", "DIRECT_SALE"
+  refDelivery   Delivery? @relation(fields: [refDeliveryId], references: [id])
+  refDeliveryId Int?
+  createdAt     DateTime  @default(now())
+}
