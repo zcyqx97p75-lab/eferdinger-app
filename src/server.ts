@@ -2,9 +2,33 @@ import "dotenv/config"; // .env laden
 import express from "express";
 import cors from "cors";
 import { PrismaClient, OrderStatus } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const app = express();
 const prisma = new PrismaClient();
+async function ensureOrganisatorUser() {
+  const email = "ewald.mayr@gemuese-mayr.at"; // Login-E-Mail
+  const password = "12345";                   // Login-Passwort
+
+  const hashed = await bcrypt.hash(password, 10);
+
+  await prisma.user.upsert({
+    where: { email },
+    update: {
+      name: "Ewald Mayr",
+      role: "ORGANISATOR",    // muss genau zum Enum in deinem Prisma-Schema passen
+      passwordHash: hashed,   // Feldname wie in schema.prisma
+    },
+    create: {
+      email,
+      name: "Ewald Mayr",
+      role: "ORGANISATOR",
+      passwordHash: hashed,
+    },
+  });
+
+  console.log("Organisator-User ist in der DB vorhanden.");
+}
 async function applyFarmerStockChange(
   farmerId: number,
   productId: number,
@@ -401,9 +425,15 @@ app.get("/api/packaging-runs", async (req, res) => {
 
 const PORT = process.env.PORT || 4000;
 
-app.listen(PORT, () => {
-  console.log(`Server läuft auf http://localhost:${PORT}`);
-});
+ensureOrganisatorUser()
+  .catch((err) => {
+    console.error("Fehler beim Anlegen des Organisators:", err);
+  })
+  .finally(() => {
+    app.listen(PORT, () => {
+      console.log(`Server läuft auf Port ${PORT}`);
+    });
+  });
 // sehr einfacher Login (nur für internen Gebrauch, später mit Passwort-Hashing absichern)
 app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
