@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 const API_URL =
- "https://eferdinger-app-2.onrender.com/api";
+import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 // ==== Typen ====
 
 type Farmer = {
@@ -203,7 +203,7 @@ const role = currentUser?.role;
 // Bauer ist nur, wer die Rolle FARMER hat und eine farmerId besitzt
 const isFarmer = role === "FARMER" && currentUser?.farmerId != null;
 
-// Organisator/Admin sind alle anderen, die eingeloggt sind und NICHT Bauer sind
+// ORGANISATOR/Admin sind alle anderen, die eingeloggt sind und NICHT Bauer sind
 // (also ORGANISATOR, EG_ADMIN, PACKER, eventuell später ADMIN)
 const isAdminOrOrg =
   !!currentUser && (role === "ORGANISATOR" || role === "EG_ADMIN" || role === "PACKER");
@@ -379,7 +379,7 @@ const isAdminOrOrg =
   function renderFarmerStockTab() {
     // effektiver Farmer-Filter:
     // - Bauer eingeloggt  → immer nur sein eigenes Lager
-    // - Admin/Organisator → benutzt stockFilterFarmerId (Dropdown)
+    // - Admin/ORGANISATOR → benutzt stockFilterFarmerId (Dropdown)
     const effectiveFarmerId =
       isFarmer && currentUser?.farmerId
         ? currentUser.farmerId

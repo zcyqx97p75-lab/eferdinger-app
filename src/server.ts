@@ -2,32 +2,29 @@ import "dotenv/config"; // .env laden
 import express from "express";
 import cors from "cors";
 import { PrismaClient, OrderStatus } from "@prisma/client";
-import bcrypt from "bcryptjs";
 
 const app = express();
 const prisma = new PrismaClient();
 async function ensureOrganisatorUser() {
-  const email = "ewald.mayr@gemuese-mayr.at"; // Login-E-Mail
-  const password = "12345";                   // Login-Passwort
-
-  const hashed = await bcrypt.hash(password, 10);
+  const email = "ewald.mayr@gemuese-mayr.at";
+  const password = "12345";
 
   await prisma.user.upsert({
     where: { email },
     update: {
       name: "Ewald Mayr",
-      role: "ORGANISATOR",    // muss genau zum Enum in deinem Prisma-Schema passen
-      passwordHash: hashed,   // Feldname wie in schema.prisma
+      role: "ORGANISATOR",  // muss exakt zum Enum in deinem Prisma-Schema passen
+      password,              // Feldname wie in schema.prisma
     },
     create: {
       email,
       name: "Ewald Mayr",
       role: "ORGANISATOR",
-      passwordHash: hashed,
+      password,
     },
   });
 
-  console.log("Organisator-User ist in der DB vorhanden.");
+  console.log("Organisator-User vorhanden oder neu angelegt:", email);
 }
 async function applyFarmerStockChange(
   farmerId: number,
@@ -192,7 +189,7 @@ app.post("/api/deliveries", async (req, res) => {
     res.status(500).json({ error: "Fehler bei Lieferung / Lagerbuchung" });
   }
 });
-// Lagerstand beim Bauern (für Organisator: alle, für Bauer: gefiltert nach farmerId)
+// Lagerstand beim Bauern (für ORGANISATOR: alle, für Bauer: gefiltert nach farmerId)
 app.get("/api/farmer-stock", async (req, res) => {
   const farmerIdRaw = req.query.farmerId as string | undefined;
   const farmerId = farmerIdRaw ? Number(farmerIdRaw) : undefined;
@@ -425,7 +422,7 @@ app.get("/api/packaging-runs", async (req, res) => {
 
 const PORT = process.env.PORT || 4000;
 
-ensureOrganisatorUser()
+ensureORGANISATORUser()
   .catch((err) => {
     console.error("Fehler beim Anlegen des Organisators:", err);
   })
