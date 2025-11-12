@@ -58,6 +58,64 @@ function parseKg(value: string): number {
   return Number.isNaN(num) ? 0 : num;
 }
 
+// ---------------------------------------------
+// Summenberechnung und Anzeige nach Kocheigenschaft
+// ---------------------------------------------
+type CookingKey = "FESTKOCHEND" | "VORWIEGEND_FESTKOCHEND" | "MEHLIG" | "UNBEKANNT";
+
+function calcCookingSums(rows: any[]) {
+  const sums: Record<CookingKey | "total", number> = {
+    FESTKOCHEND: 0,
+    VORWIEGEND_FESTKOCHEND: 0,
+    MEHLIG: 0,
+    UNBEKANNT: 0,
+    total: 0,
+  };
+
+  for (const r of rows) {
+    const kg = Number(r.quantityKg ?? r.quantityTons ?? 0);
+    const keyRaw = (r.product?.cookingType as CookingKey) || "UNBEKANNT";
+    const key: CookingKey =
+      keyRaw === "FESTKOCHEND" ||
+      keyRaw === "VORWIEGEND_FESTKOCHEND" ||
+      keyRaw === "MEHLIG"
+        ? keyRaw
+        : "UNBEKANNT";
+    sums[key] += kg;
+    sums.total += kg;
+  }
+  return sums;
+}
+
+function SummaryRow({ label, sums }: { label: string; sums: ReturnType<typeof calcCookingSums> }) {
+  const boxStyle: React.CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "repeat(4, 1fr)",
+    gap: "0.5rem",
+    marginTop: "0.5rem",
+  };
+  const chip: React.CSSProperties = {
+    background: "#1f2937",
+    padding: "0.5rem 0.75rem",
+    borderRadius: "0.5rem",
+    border: "1px solid #374151",
+    display: "flex",
+    justifyContent: "space-between",
+    fontSize: "0.9rem",
+  };
+  return (
+    <div style={{ marginTop: "0.75rem" }}>
+      <div style={{ fontWeight: 600, marginBottom: "0.25rem" }}>{label}</div>
+      <div style={boxStyle}>
+        <div style={chip}><span>festkochend</span><span>{formatKg(sums.FESTKOCHEND)} kg</span></div>
+        <div style={chip}><span>vorwiegend festkochend</span><span>{formatKg(sums.VORWIEGEND_FESTKOCHEND)} kg</span></div>
+        <div style={chip}><span>mehlig</span><span>{formatKg(sums.MEHLIG)} kg</span></div>
+        <div style={chip}><span>Gesamt</span><span>{formatKg(sums.total)} kg</span></div>
+      </div>
+    </div>
+  );
+}
+
 // ==== App ====
 
 export default function App() {
@@ -542,6 +600,20 @@ const isAdminOrOrg =
               )}
             </tbody>
           </table>
+          {/* Summen nach Kocheigenschaft */}
+{(() => {
+  const sumsFiltered = calcCookingSums(filtered);
+  return <SummaryRow label="Summen (aktuelle Ansicht)" sums={sumsFiltered} />;
+})()}
+
+/* Beim Organisator zusätzlich Gesamtsumme */
+{isAdminOrOrg &&
+  stockFilterFarmerId === "" &&
+  stockCookingFilter === "alle" &&
+  stockProductFilterId === "alle" && (() => {
+    const sumsAll = calcCookingSums(farmerStocks);
+    return <SummaryRow label="Summen (alle Bauern)" sums={sumsAll} />;
+  })()}
         </section>
 
         {/* Lager pflegen – nur für Bauer */}
