@@ -5,16 +5,17 @@ import { PrismaClient, OrderStatus } from "@prisma/client";
 
 const app = express();
 const prisma = new PrismaClient();
+// === Organisator-User beim Start sicherstellen ===
 async function ensureOrganisatorUser() {
   const email = "ewald.mayr@gemuese-mayr.at";
-  const password = "12345";
+  const password = "12345"; // nur zum Testen!
 
   await prisma.user.upsert({
     where: { email },
     update: {
       name: "Ewald Mayr",
-      role: "ORGANISATOR",  // muss exakt zum Enum in deinem Prisma-Schema passen
-      password,              // Feldname wie in schema.prisma
+      role: "ORGANISATOR", // exakt wie im Prisma-Enum
+      password,            // Feldname wie in schema.prisma
     },
     create: {
       email,
@@ -24,8 +25,11 @@ async function ensureOrganisatorUser() {
     },
   });
 
-  console.log("Organisator-User vorhanden oder neu angelegt:", email);
+  console.log("Organisator-User vorhanden/angelegt:", email);
 }
+
+// >>> Aufruf (Name exakt gleich wie oben!)
+ensureOrganisatorUser().catch(console.error);
 async function applyFarmerStockChange(
   farmerId: number,
   productId: number,
@@ -422,7 +426,7 @@ app.get("/api/packaging-runs", async (req, res) => {
 
 const PORT = process.env.PORT || 4000;
 
-ensureORGANISATORUser()
+ensureOrganisatorUser()
   .catch((err) => {
     console.error("Fehler beim Anlegen des Organisators:", err);
   })
