@@ -114,24 +114,61 @@ app.get("/api/products", async (_req, res) => {
 });
 
 app.post("/api/products", async (req, res) => {
-  const { name, cookingType, packagingType, productNumber } = req.body;
+  const { name, cookingType, packagingType, productNumber, colliKg } = req.body;
 
   if (!name || !cookingType || !packagingType) {
     return res
       .status(400)
-      .json({ error: "Name, Kocheigenschaft und Verpackungsart sind erforderlich" });
+      .json({ error: "Name (Sorte), Kocheigenschaft und Verpackungsart sind erforderlich" });
   }
 
-  const product = await prisma.product.create({
-    data: {
-      name,
-      cookingType,
-      packagingType,
-      productNumber,
-    },
-  });
+  try {
+    // 1) Variety (Sorte + Kocheigenschaft) finden/erzeugen
+    // Falls du eine Unique-Constraint hast (name+cookingType), nutze upsert mit zusammengesetztem Key.
+    // Ansonsten: findFirst + create.
+    let variety = await prisma.variety.findFirst({
+      where: { name, cookingType },
+    });
+    if (!variety) {
+      variety = await prisma.variety.create({
+        data: { name, cookingType },
+      });
+    }
 
-  res.status(201).json(product);
+    // 2) Packaging (Verpackungsart + optional Colli kg) finden/erzeugen
+    let packaging = await prisma.packaging.findFirst({
+      where: { name: packagingType },
+    });
+    if (!packaging) {
+      packaging = await prisma.packaging.create({
+        data: {
+          name: packagingType,
+          colliKg: colliKg != null ? Number(colliKg) : null,
+        },
+      });
+    }
+
+    // 3) Product mit Referenzen anlegen
+    const product = await prisma.product.create({
+      data: {
+        varietyId: variety.id,
+        packagingId: packaging.id,
+        productNumber: productNumber ?? null,
+      },
+    });
+
+    // Legacy-kompatible Antwort für dein aktuelles Frontend
+    res.status(201).json({
+      id: product.id,
+      name,                  // Sortenname
+      cookingType,           // Kocheigenschaft
+      packagingType,         // Verpackungsbezeichnung
+      productNumber: productNumber ?? null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Fehler beim Anlegen des Produkts" });
+  }
 });
 
 /**
