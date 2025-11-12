@@ -64,19 +64,22 @@ model Customer {
 model Product {
   id                   Int                   @id @default(autoincrement())
   name                 String
-  cookingType          CookingType
-  packagingType        String
   productNumber        String?
-  isActive             Boolean               @default(true)
+  varietyId            Int
+  variety              Variety               @relation(fields: [varietyId], references: [id])
+  unitKg               Int
+  unitsPerCrate        Int?
+  cratesPerPallet      Int?
+  packagingType        String?
   customerProducts     CustomerProduct[]
   deliveries           Delivery[]
   washingRuns          WashingRun[]
-  orders               Order[]
-  packagingRuns        PackagingRun[]
   inventories          Inventory[]
   prices               Price[]
-  farmerStocks         FarmerStock[]
   farmerStockMovements FarmerStockMovement[]
+  packagingRuns        PackagingRun[]
+  orders               Order[]
+  FarmerStock          FarmerStock[]
 }
 
 model CustomerProduct {
@@ -208,4 +211,11 @@ model FarmerStockMovement {
   refDelivery   Delivery? @relation(fields: [refDeliveryId], references: [id])
   refDeliveryId Int?
   createdAt     DateTime  @default(now())
+}
+
+model Variety {
+  id          Int         @id @default(autoincrement())
+  name        String      @unique
+  cookingType CookingType
+  products    Product[]
 }
