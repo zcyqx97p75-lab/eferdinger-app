@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+const API_URL = "https://eferdinger-app-2.onrender.com/api";
 // ==== Typen ====
 
 type Farmer = {
