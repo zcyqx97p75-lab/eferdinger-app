@@ -18,6 +18,13 @@ type Product = {
   productNumber?: string | null;
 };
 
+type Variety = {
+  id: number;
+  name: string;
+  cookingType: CookingType;
+  quality: string; // z.B. "Q1", "Q2", "UEBERGROESSE" – muss zu deinem Prisma-Enum passen
+};
+
 type Customer = {
   id: number;
   name: string;
@@ -123,14 +130,13 @@ export default function App() {
 
   const [farmers, setFarmers] = useState<Farmer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const safeProducts = Array.isArray(products) ? products : [];
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [farmerStocks, setFarmerStocks] = useState<FarmerStock[]>([]);
+  const [varieties, setVarieties] = useState<Variety[]>([]);
 
   const [message, setMessage] = useState<string | null>(null);
   
-  // SICHERE PRODUKT-LISTE
-  const safeProducts = Array.isArray(products) ? products : [];
-
   // Login
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [loginEmail, setLoginEmail] = useState("");
@@ -145,7 +151,14 @@ export default function App() {
   const [productCookingType, setProductCookingType] = useState("FESTKOCHEND");
   const [productPackagingType, setProductPackagingType] = useState("");
   const [productNumber, setProductNumber] = useState("");
-
+  const [productUnitKg, setProductUnitKg] = useState("2");
+  const [productUnitsPerColli, setProductUnitsPerColli] = useState("");
+  const [productCollisPerPallet, setProductCollisPerPallet] = useState("");
+  
+  const [varietyName, setVarietyName] = useState("");
+  const [varietyCookingType, setVarietyCookingType] =
+    useState<CookingType>("FESTKOCHEND");
+  const [varietyQuality, setVarietyQuality] = useState("Q1");
   const [customerName, setCustomerName] = useState("");
   const [customerRegion, setCustomerRegion] = useState("");
 
@@ -195,6 +208,12 @@ export default function App() {
     setCustomers(data);
   }
 
+    async function loadVarieties() {
+    const res = await fetch(`${API_URL}/varieties`);
+    const data = await res.json();
+    setVarieties(Array.isArray(data) ? data : []);
+  }
+
   async function loadFarmerStocks(farmerId?: number) {
     const url = farmerId
       ? `${API_URL}/farmer-stock?farmerId=${farmerId}`
@@ -205,10 +224,11 @@ export default function App() {
   }
 
   // initial Stammdaten laden
-  useEffect(() => {
+   useEffect(() => {
     loadFarmers().catch(console.error);
     loadProducts().catch(console.error);
     loadCustomers().catch(console.error);
+    loadVarieties().catch(console.error);
   }, []);
 
   // nach Login Lager laden
@@ -299,6 +319,30 @@ const isAdminOrOrg =
 
   async function handleCreateProduct(e: React.FormEvent) {
     e.preventDefault();
+
+    // einfache Pflichtfeld-Checks
+    if (!productName.trim()) {
+      showMessage("Produktname fehlt");
+      return;
+    }
+    if (!productUnitKg.trim()) {
+      showMessage("Packungsgröße (kg) fehlt");
+      return;
+    }
+
+    const unitKgNum = Number(productUnitKg.replace(",", "."));
+    const unitsPerColliNum = productUnitsPerColli
+      ? Number(productUnitsPerColli.replace(",", "."))
+      : undefined;
+    const collisPerPalletNum = productCollisPerPallet
+      ? Number(productCollisPerPallet.replace(",", "."))
+      : undefined;
+
+    if (!Number.isFinite(unitKgNum) || unitKgNum <= 0) {
+      showMessage("Packungsgröße (kg) muss eine Zahl > 0 sein");
+      return;
+    }
+
     try {
       const res = await fetch(`${API_URL}/products`, {
         method: "POST",
@@ -306,18 +350,28 @@ const isAdminOrOrg =
         body: JSON.stringify({
           name: productName,
           cookingType: productCookingType,
-          packagingType: productPackagingType,
-          productNumber,
+          unitKg: unitKgNum,
+          unitsPerColli: unitsPerColliNum,
+          collisPerPallet: collisPerPalletNum,
+          packagingType: productPackagingType || null, // Enum-Key
+          productNumber: productNumber || null,
         }),
       });
+
       if (!res.ok) {
         showMessage("Fehler beim Anlegen des Produkts");
         return;
       }
+
+      // Felder leeren / Defaults setzen
       setProductName("");
       setProductCookingType("FESTKOCHEND");
       setProductPackagingType("");
       setProductNumber("");
+      setProductUnitKg("2");
+      setProductUnitsPerColli("");
+      setProductCollisPerPallet("");
+
       await loadProducts();
       showMessage("Produkt gespeichert");
     } catch (err) {
@@ -795,16 +849,18 @@ const isAdminOrOrg =
           </ul>
         </section>
 
-        {/* Produkte */}
+                {/* Produkte */}
         <section style={{ border: "1px solid #4b5563", padding: "1rem" }}>
-          <h2>Produkte (Sorten)</h2>
+          <h2>Produkte</h2>
           <form onSubmit={handleCreateProduct}>
-            <label>Sorte</label>
+            <label>Produktname</label>
             <input
               value={productName}
               onChange={(e) => setProductName(e.target.value)}
               required
+              placeholder="z.B. Eferdinger Landl Erdäpfel festkochend 2 kg"
             />
+
             <label>Kocheigenschaft</label>
             <select
               value={productCookingType}
@@ -816,17 +872,58 @@ const isAdminOrOrg =
               </option>
               <option value="MEHLIG">mehlig</option>
             </select>
-            <label>Verpackung</label>
-            <input
+
+            <label>Verpackungstyp</label>
+            <select
               value={productPackagingType}
               onChange={(e) => setProductPackagingType(e.target.value)}
-              placeholder="z.B. lose, 5 kg Sack"
+            >
+              <option value="">– wählen –</option>
+              <option value="NETZSACK">Netzsack</option>
+              <option value="CLIPNETZ">Clipnetz</option>
+              <option value="KISTE">Kiste</option>
+              <option value="KARTON">Karton</option>
+              <option value="VERTPACK">Vertpack</option>
+              <option value="PE_BEUTEL">PE-Beutel</option>
+              <option value="LOSE">lose</option>
+              <option value="GROSSKISTEN">Großkiste</option>
+              <option value="BIGBAG">BigBag</option>
+            </select>
+
+            <label>Packungsgröße (kg)</label>
+            <input
+              type="number"
+              step="0.01"
+              value={productUnitKg}
+              onChange={(e) => setProductUnitKg(e.target.value)}
+              required
             />
+
+            <label>Einheiten je Colli (optional)</label>
+            <input
+              type="number"
+              step="1"
+              value={productUnitsPerColli}
+              onChange={(e) => setProductUnitsPerColli(e.target.value)}
+              placeholder="z.B. 9"
+            />
+
+            <label>Colli je Palette (optional)</label>
+            <input
+              type="number"
+              step="1"
+              value={productCollisPerPallet}
+              onChange={(e) => setProductCollisPerPallet(e.target.value)}
+              placeholder="z.B. 32"
+            />
+
             <label>Produktnummer (optional)</label>
             <input
               value={productNumber}
               onChange={(e) => setProductNumber(e.target.value)}
+              placeholder="z.B. EL-2KG-FK"
             />
+
             <button type="submit" style={{ marginTop: "0.5rem" }}>
               Speichern
             </button>
@@ -835,7 +932,85 @@ const isAdminOrOrg =
           <ul style={{ marginTop: "0.5rem", fontSize: "0.85rem" }}>
             {safeProducts.map((p) => (
               <li key={p.id}>
-                {p.name} – {p.cookingType} – {p.packagingType}
+                {p.name} – {p.cookingType} – {p.packagingType} –{" "}
+                {p.unitKg} kg, {p.unitsPerColli ?? "-"}/Colli,{" "}
+                {p.collisPerPallet ?? "-"} Colli/Palette
+              </li>
+            ))}
+          </ul>
+        </section>
+
+                {/* Sorten */}
+        <section style={{ border: "1px solid #4b5563", padding: "1rem" }}>
+          <h2>Sorten</h2>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                const res = await fetch(`${API_URL}/varieties`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    name: varietyName,
+                    cookingType: varietyCookingType,
+                    quality: varietyQuality,
+                  }),
+                });
+                if (!res.ok) {
+                  showMessage("Fehler beim Anlegen der Sorte");
+                  return;
+                }
+                setVarietyName("");
+                setVarietyCookingType("FESTKOCHEND");
+                setVarietyQuality("Q1");
+                await loadVarieties();
+                showMessage("Sorte gespeichert");
+              } catch (err) {
+                console.error(err);
+                showMessage("Fehler beim Anlegen der Sorte");
+              }
+            }}
+          >
+            <label>Name der Sorte</label>
+            <input
+              value={varietyName}
+              onChange={(e) => setVarietyName(e.target.value)}
+              required
+            />
+
+            <label>Kocheigenschaft</label>
+            <select
+              value={varietyCookingType}
+              onChange={(e) =>
+                setVarietyCookingType(e.target.value as CookingType)
+              }
+            >
+              <option value="FESTKOCHEND">festkochend</option>
+              <option value="VORWIEGEND_FESTKOCHEND">
+                vorwiegend festkochend
+              </option>
+              <option value="MEHLIG">mehlig</option>
+            </select>
+
+            <label>Qualität / Sortierung</label>
+            <select
+              value={varietyQuality}
+              onChange={(e) => setVarietyQuality(e.target.value)}
+            >
+              <option value="Q1">1. Qualität</option>
+              <option value="Q2">2. Qualität</option>
+              <option value="UEBERGROESSE">Übergrößen</option>
+            </select>
+
+            <button type="submit" style={{ marginTop: "0.5rem" }}>
+              Speichern
+            </button>
+          </form>
+
+          <ul style={{ marginTop: "0.5rem", fontSize: "0.85rem" }}>
+            {varieties.map((v) => (
+              <li key={v.id}>
+                {v.name} – {v.cookingType} – {v.quality}
               </li>
             ))}
           </ul>

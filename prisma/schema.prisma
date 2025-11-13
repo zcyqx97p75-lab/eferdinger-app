@@ -33,6 +33,12 @@ enum PackagingType {
   BIGBAG
 }
 
+enum VarietyQuality {
+  Q1           // 1. Qualität
+  Q2           // 2. Qualität
+  UEBERGROESSE // Übergrößen
+}
+
 enum OrderStatus {
   OPEN
   IN_PROGRESS
@@ -52,22 +58,46 @@ model User {
 }
 
 model Farmer {
-  id                   Int                   @id @default(autoincrement())
-  name                 String
-  farmName             String?
-  contactInfo          String?
+  id          Int     @id @default(autoincrement())
+  name        String
+  farmName    String?
+  contactInfo String?
+
+  addressId Int?
+  address   Address? @relation(fields: [addressId], references: [id])
+
   users                User[]
   deliveries           Delivery[]
   farmerStocks         FarmerStock[]
   farmerStockMovements FarmerStockMovement[]
 }
 
+model Address {
+  id      Int     @id @default(autoincrement())
+  street  String
+  zip     String
+  city    String
+  country String? @default("Österreich")
+
+  farmers   Farmer[]
+  customers Customer[]
+}
+
 model Customer {
-  id               Int               @id @default(autoincrement())
-  name             String
-  externalId       String? // Kundennummer Handel
-  region           String?
-  contactInfo      String?
+  id          Int     @id @default(autoincrement())
+  name        String
+  externalId  String? // Kundennummer Handel
+  region      String?
+  contactInfo String?
+
+  email         String? // später im Frontend Pflicht
+  phone         String?
+  contactPerson String?
+  vatId         String? // UID-Nummer
+
+  addressId Int?
+  address   Address? @relation(fields: [addressId], references: [id])
+
   orders           Order[]
   actions          Action[]
   prices           Price[]
@@ -93,6 +123,15 @@ model Product {
   packagingRuns        PackagingRun[]
   orders               Order[]
   FarmerStock          FarmerStock[]
+}
+
+model Variety {
+  id          Int            @id @default(autoincrement())
+  name        String         @unique
+  cookingType CookingType
+  quality     VarietyQuality
+
+  // aktuell keine Relationen – wird später für Bauernlager / Planung genutzt
 }
 
 model CustomerProduct {
@@ -205,12 +244,12 @@ model FarmerStock {
   id           Int      @id @default(autoincrement())
   farmer       Farmer   @relation(fields: [farmerId], references: [id])
   farmerId     Int
-  product      Product  @relation(fields: [productId], references: [id])
-  productId    Int
+  variety      Variety  @relation(fields: [varietyId], references: [id])
+  varietyId    Int
   quantityTons Decimal
   updatedAt    DateTime @updatedAt
 
-  @@unique([farmerId, productId])
+  @@unique([farmerId, varietyId])
 }
 
 model FarmerStockMovement {

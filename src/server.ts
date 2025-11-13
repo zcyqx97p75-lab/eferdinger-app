@@ -1,7 +1,7 @@
 import "dotenv/config"; // .env laden
 import express from "express";
 import cors from "cors";
-import { PrismaClient, OrderStatus } from "@prisma/client";
+import { PrismaClient, OrderStatus, Prisma } from "@prisma/client";
 
 const app = express();
 const prisma = new PrismaClient();
@@ -30,33 +30,23 @@ async function ensureOrganisatorUser() {
 
 // >>> Aufruf (Name exakt gleich wie oben!)
 ensureOrganisatorUser().catch(console.error);
+// === Hilfsfunktion: Bauernlager verändern (arbeitet in kg) ===
 async function applyFarmerStockChange(
   farmerId: number,
   productId: number,
-  changeKg: number,          // wir arbeiten in kg
+  changeKg: number,
   reason: string,
   refDeliveryId?: number
 ) {
-  // 1) Bewegung protokollieren
-  await prisma.farmerStockMovement.create({
-    data: {
-      farmerId,
-      productId,
-      changeTons: changeKg,   // Feldname bleibt so, Inhalt ist kg
-      reason,
-      refDeliveryId: refDeliveryId ?? null,
-    },
-  });
-
-  // 2) aktuellen Bestand holen oder anlegen
+  // alten Eintrag holen
   const existing = await prisma.farmerStock.findUnique({
     where: { farmerId_productId: { farmerId, productId } },
   });
 
   if (existing) {
-    // quantityTons kommt als Decimal/String → sicher in number umwandeln
+    // quantityTons ist in der DB, wir verwenden sie als kg
     const current = Number(existing.quantityTons) || 0;
-    const updated = current + changeKg;  // echte Zahlen-Addition
+    const updated = current + changeKg;
 
     await prisma.farmerStock.update({
       where: { id: existing.id },
@@ -65,7 +55,7 @@ async function applyFarmerStockChange(
       },
     });
   } else {
-    // erster Eintrag: einfach den übergebenen Wert speichern
+    // erster Eintrag: einfach neuen Datensatz anlegen
     await prisma.farmerStock.create({
       data: {
         farmerId,
@@ -74,7 +64,21 @@ async function applyFarmerStockChange(
       },
     });
   }
+
+  // Bewegungsprotokoll
+  await prisma.farmerStockMovement.create({
+    data: {
+      farmerId,
+      productId,
+      changeTons: changeKg,
+      reason,
+      refDeliveryId: refDeliveryId ?? null,
+    },
+  });
 }
+
+app.use(cors());
+app.use(express.json());
 app.use(cors());
 app.use(express.json());
 
@@ -129,7 +133,9 @@ app.post("/api/products", async (req, res) => {
   } = req.body;
 
   if (!name || !cookingType || !unitKg) {
-    return res.status(400).json({ error: "name, cookingType, unitKg sind Pflichtfelder" });
+    return res
+      .status(400)
+      .json({ error: "name, cookingType, unitKg sind Pflichtfelder" });
   }
 
   try {
@@ -145,11 +151,55 @@ app.post("/api/products", async (req, res) => {
       },
     });
     res.status(201).json(product);
-  } catch (err:any) {
+  } catch (err: any) {
     console.error(err);
-    res.status(500).json({ error: "Fehler beim Anlegen des Produkts", detail: String(err.message || err) });
+    res.status(500).json({
+      error: "Fehler beim Anlegen des Produkts",
+      detail: String(err.message || err),
+    });
   }
 });
+
+// === SORTEN (Varieties) ===
+app.get("/api/varieties", async (_req, res) => {
+  try {
+    const varieties = await prisma.variety.findMany({
+      orderBy: [{ name: "asc" }],
+    });
+    res.json(varieties);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Fehler beim Laden der Sorten" });
+  }
+});
+
+app.post("/api/varieties", async (req, res) => {
+  const { name, cookingType, quality } = req.body;
+
+  if (!name || !cookingType || !quality) {
+    return res
+      .status(400)
+      .json({ error: "name, cookingType, quality sind Pflichtfelder" });
+  }
+
+  try {
+    const variety = await prisma.variety.create({
+      data: {
+        name,
+        cookingType, // enum CookingType
+        quality,     // enum VarietyQuality (Q1, Q2, UEBERGROESSE)
+      },
+    });
+    res.status(201).json(variety);
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({
+      error: "Fehler beim Anlegen der Sorte",
+      detail: String(err.message || err),
+    });
+  }
+});
+
 /**
  * KUNDEN
  */
@@ -172,43 +222,43 @@ app.post("/api/customers", async (req, res) => {
   res.status(201).json(customer);
 });
 
-/**
- * LIEFERUNGEN
- */
+// === LIEFERUNGEN AN PACKER (EG) ===
 app.post("/api/deliveries", async (req, res) => {
-  const { date, farmerId, productId, grossTons, wasteKg, netTons } = req.body;
-
-  if (!date || !farmerId || !productId || grossTons == null || netTons == null) {
-    return res.status(400).json({ error: "Pflichtfelder fehlen" });
-  }
-
   try {
+    const { farmerId, productId, date, grossTons, wasteKg } = req.body;
+
+    if (!farmerId || !productId || !date || !grossTons) {
+      return res
+        .status(400)
+        .json({ error: "farmerId, productId, date und grossTons sind Pflichtfelder" });
+    }
+
+    const waste = Number(wasteKg ?? 0);
+    const gross = Number(grossTons);
+
     const delivery = await prisma.delivery.create({
       data: {
+        farmerId: Number(farmerId),
+        productId: Number(productId),
         date: new Date(date),
-        farmerId,
-        productId,
-        grossTons,
-        wasteKg: wasteKg ?? 0,
-        netTons,
+        grossTons: gross,
+        wasteKg: waste,
+        netTons: gross - waste / 1000,
       },
     });
 
-    // Bauer-Lager automatisch reduzieren (hier mit Bruttomenge)
-    await applyFarmerStockChange(
-      farmerId,
-      productId,
-      -Number(grossTons),
-      "DELIVERY_TO_PACKER",
-      delivery.id
-    );
+    // Lagerbuchung ins Bauernlager ist vorerst deaktiviert,
+    // bis wir vollständig auf Sorten-Lager umgestellt haben.
 
     res.status(201).json(delivery);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Fehler bei Lieferung / Lagerbuchung" });
+    res
+      .status(500)
+      .json({ error: "Fehler bei Lieferung / Lagerbuchung" });
   }
 });
+
 // Lagerstand beim Bauern (für ORGANISATOR: alle, für Bauer: gefiltert nach farmerId)
 app.get("/api/farmer-stock", async (req, res) => {
   const farmerIdRaw = req.query.farmerId as string | undefined;
