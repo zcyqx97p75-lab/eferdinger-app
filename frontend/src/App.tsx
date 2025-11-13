@@ -127,6 +127,9 @@ export default function App() {
   const [farmerStocks, setFarmerStocks] = useState<FarmerStock[]>([]);
 
   const [message, setMessage] = useState<string | null>(null);
+  
+  // SICHERE PRODUKT-LISTE
+  const safeProducts = Array.isArray(products) ? products : [];
 
   // Login
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -181,10 +184,10 @@ export default function App() {
   }
 
   async function loadProducts() {
-    const res = await fetch(`${API_URL}/products`);
-    const data = await res.json();
-    setProducts(data);
-  }
+  const res = await fetch(`${API_URL}/products`);
+  const data = await res.json();
+  setProducts(Array.isArray(data) ? data : []);
+}
 
   async function loadCustomers() {
     const res = await fetch(`${API_URL}/customers`);
@@ -553,7 +556,7 @@ const isAdminOrOrg =
                     }
                   >
                     <option value="alle">alle</option>
-                    {products.map((p) => (
+                    {safeProducts.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name} ({p.packagingType})
                       </option>
@@ -634,7 +637,7 @@ const isAdminOrOrg =
                 }
               >
                 <option value="">– Produkt –</option>
-                {products.map((p) => (
+                {safeProducts.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name} ({p.packagingType})
                   </option>
@@ -675,7 +678,7 @@ const isAdminOrOrg =
                 }
               >
                 <option value="">– Produkt –</option>
-                {products.map((p) => (
+                {safeProducts.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name} ({p.packagingType})
                   </option>
@@ -716,7 +719,7 @@ const isAdminOrOrg =
                 }
               >
                 <option value="">– Produkt –</option>
-                {products.map((p) => (
+                {safeProducts.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name} ({p.packagingType})
                   </option>
@@ -830,7 +833,7 @@ const isAdminOrOrg =
           </form>
 
           <ul style={{ marginTop: "0.5rem", fontSize: "0.85rem" }}>
-            {products.map((p) => (
+            {safeProducts.map((p) => (
               <li key={p.id}>
                 {p.name} – {p.cookingType} – {p.packagingType}
               </li>

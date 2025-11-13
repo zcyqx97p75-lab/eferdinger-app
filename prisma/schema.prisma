@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") //
 }
 
 enum UserRole {
@@ -18,6 +19,18 @@ enum CookingType {
   FESTKOCHEND
   VORWIEGEND_FESTKOCHEND
   MEHLIG
+}
+
+enum PackagingType {
+  NETZSACK
+  CLIPNETZ
+  KISTE
+  KARTON
+  VERTPACK
+  PE_BEUTEL
+  LOSE
+  GROSSKISTEN
+  BIGBAG
 }
 
 enum OrderStatus {
@@ -62,15 +75,15 @@ model Customer {
 }
 
 model Product {
-  id                   Int                   @id @default(autoincrement())
-  name                 String
-  productNumber        String?
-  varietyId            Int
-  variety              Variety               @relation(fields: [varietyId], references: [id])
-  unitKg               Int
-  unitsPerCrate        Int?
-  cratesPerPallet      Int?
-  packagingType        String?
+  id              Int            @id @default(autoincrement())
+  name            String
+  cookingType     CookingType
+  productNumber   String?
+  unitKg          Int
+  unitsPerColli   Int?
+  collisPerPallet Int?
+  packagingType   PackagingType?
+
   customerProducts     CustomerProduct[]
   deliveries           Delivery[]
   washingRuns          WashingRun[]
@@ -211,11 +224,4 @@ model FarmerStockMovement {
   refDelivery   Delivery? @relation(fields: [refDeliveryId], references: [id])
   refDeliveryId Int?
   createdAt     DateTime  @default(now())
-}
-
-model Variety {
-  id          Int         @id @default(autoincrement())
-  name        String      @unique
-  cookingType CookingType
-  products    Product[]
 }

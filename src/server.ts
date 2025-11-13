@@ -105,112 +105,47 @@ app.post("/api/farmers", async (req, res) => {
   res.status(201).json(farmer);
 });
 
-/**
- * PRODUKTE
- */
+// === PRODUKTE ===
 app.get("/api/products", async (_req, res) => {
-  try {
-    const products = await prisma.product.findMany({
-      include: { variety: true },
-      orderBy: { id: "asc" },
-    });
-
-    // Map für dein Frontend (cookingType kommt aus Variety)
-    const mapped = products.map((p) => ({
-      id: p.id,
-      name: p.name,                           // Sorten-/Produktname
-      cookingType: p.variety?.cookingType ?? null,
-      packagingType: p.packagingType ?? null, // optional
-      productNumber: p.productNumber ?? null,
-      // interne Felder falls später gebraucht:
-      unitKg: p.unitKg,
-      unitsPerCrate: p.unitsPerCrate ?? null,
-      cratesPerPallet: p.cratesPerPallet ?? null,
-      varietyId: p.varietyId,
-      varietyName: p.variety?.name ?? null,
-    }));
-
-    res.json(mapped);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Fehler beim Laden der Produkte" });
-  }
+  const products = await prisma.product.findMany({
+    orderBy: [{ name: "asc" }],
+  });
+  res.json(products);
 });
+
 app.post("/api/products", async (req, res) => {
   const {
-    name,               // Produkt-/Sortenname
-    cookingType,        // kommt aus Variety
-    packagingType,      // optional (z.B. "lose", "5 kg Sack")
-    productNumber,      // optional
-    unitKg,             // optional -> fallback 1000
-    unitsPerCrate,      // optional
-    cratesPerPallet,    // optional
-    varietyName,        // optional: eigener Varietätenname (falls abweichend von name)
+    name,
+    cookingType,      // "FESTKOCHEND" | "VORWIEGEND_FESTKOCHEND" | "MEHLIG"
+    unitKg,           // z.B. 2
+    unitsPerColli,    // z.B. 9
+    collisPerPallet,  // z.B. 32
+    packagingType,    // z.B. "VERTPACK" (Enum!)
+    productNumber,    // optional
   } = req.body;
 
-  if (!name || !cookingType) {
-    return res.status(400).json({
-      error: "name (Sorte/Produkt) und cookingType sind erforderlich",
-    });
+  if (!name || !cookingType || !unitKg) {
+    return res.status(400).json({ error: "name, cookingType, unitKg sind Pflichtfelder" });
   }
 
   try {
-    // 1) Variety finden/erstellen
-    const vName = varietyName && String(varietyName).trim().length > 0 ? varietyName : name;
-
-    let variety = await prisma.variety.findFirst({
-      where: { name: vName },
-    });
-
-    if (!variety) {
-      variety = await prisma.variety.create({
-        data: {
-          name: vName,
-          cookingType, // muss enum CookingType im Schema sein
-        },
-      });
-    } else {
-      // optional: cookingType korrigieren, wenn abweichend
-      if (variety.cookingType !== cookingType) {
-        variety = await prisma.variety.update({
-          where: { id: variety.id },
-          data: { cookingType },
-        });
-      }
-    }
-
-    // 2) Product anlegen (unitKg ist Pflicht im Schema -> fallback 1000)
-    const created = await prisma.product.create({
+    const product = await prisma.product.create({
       data: {
-        name,                                  // Klartextname
-        productNumber: productNumber ?? null,
-        varietyId: variety.id,
-        unitKg: Number.isFinite(+unitKg) && +unitKg > 0 ? Math.floor(+unitKg) : 1000,
-        unitsPerCrate: unitsPerCrate != null ? Math.floor(+unitsPerCrate) : null,
-        cratesPerPallet: cratesPerPallet != null ? Math.floor(+cratesPerPallet) : null,
-        packagingType: packagingType ?? null,
+        name,
+        cookingType,
+        unitKg: Number(unitKg),
+        unitsPerColli: unitsPerColli ? Number(unitsPerColli) : null,
+        collisPerPallet: collisPerPallet ? Number(collisPerPallet) : null,
+        packagingType: packagingType || null,
+        productNumber: productNumber || null,
       },
-      include: { variety: true },
     });
-
-    return res.status(201).json({
-      id: created.id,
-      name: created.name,
-      cookingType: created.variety?.cookingType ?? null,
-      packagingType: created.packagingType ?? null,
-      productNumber: created.productNumber ?? null,
-      unitKg: created.unitKg,
-      unitsPerCrate: created.unitsPerCrate,
-      cratesPerPallet: created.cratesPerPallet,
-      varietyId: created.varietyId,
-      varietyName: created.variety?.name ?? null,
-    });
-  } catch (err) {
+    res.status(201).json(product);
+  } catch (err:any) {
     console.error(err);
-    res.status(500).json({ error: "Fehler beim Anlegen des Produkts" });
+    res.status(500).json({ error: "Fehler beim Anlegen des Produkts", detail: String(err.message || err) });
   }
 });
-
 /**
  * KUNDEN
  */
