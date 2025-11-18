@@ -1,30 +1,41 @@
 import { useEffect, useState } from "react";
 
-const API_URL = "https://eferdinger-app-2.onrender.com/api";
+const API_URL = import.meta.env.VITE_API_URL || "/api";
+console.log("API_URL FRONTEND =", API_URL);
 // ==== Typen ====
 
+// 1) ENUM-ähnliche Typen
+type CookingType = "FESTKOCHEND" | "VORWIEGEND_FESTKOCHEND" | "MEHLIG";
+type VarietyQuality = "Q1" | "Q2" | "UEBERGROESSE";
+
+// 2) Bauern
 type Farmer = {
   id: number;
   name: string;
-  farmName?: string | null;
-  contactInfo?: string | null;
+  fullAddress?: string | null;
+  ggnNumber?: string | null;
+  loginEmail?: string | null;
+  loginPassword?: string | null;
 };
 
+// 3) Sorten (NEU)
+interface Variety {
+  id: number;
+  name: string;
+  cookingType: CookingType;
+  quality: VarietyQuality;
+}
+
+// 4) Produkte
 type Product = {
   id: number;
   name: string;
-  cookingType: string;
+  cookingType: CookingType;
   packagingType: string;
   productNumber?: string | null;
 };
 
-type Variety = {
-  id: number;
-  name: string;
-  cookingType: CookingType;
-  quality: string; // z.B. "Q1", "Q2", "UEBERGROESSE" – muss zu deinem Prisma-Enum passen
-};
-
+// 5) Kunden
 type Customer = {
   id: number;
   name: string;
@@ -34,17 +45,27 @@ type Customer = {
 type FarmerStock = {
   id: number;
   farmerId: number;
-  productId: number;
-  quantityTons: number; // wir verwenden kg, Name bleibt vorerst so
+  varietyId: number;
+  quantityTons: number;  // wir verwenden kg, Name lassen wir vorerst
   farmer?: Farmer;
-  product?: Product;
+  variety?: Variety;
 };
 
+// 7) User
 type CurrentUser = {
   id: number;
   name: string;
   role: "ORGANISATOR" | "FARMER" | "PACKER" | "EG_ADMIN";
   farmerId?: number | null;
+};
+
+// Bestätigung für Inventur / Verkäufe
+type ConfirmAction = {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  cancelLabel?: string;
+  onConfirm: () => void;
 };
 
 type Tab = "stamm" | "farmerStock";
@@ -80,17 +101,25 @@ function calcCookingSums(rows: any[]) {
   };
 
   for (const r of rows) {
-    const kg = Number(r.quantityKg ?? r.quantityTons ?? 0);
-    const keyRaw = (r.product?.cookingType as CookingKey) || "UNBEKANNT";
+    // im Bauernlager ist quantityTons = kg
+    const kg = Number(r.quantityTons ?? r.quantityKg ?? 0);
+
+    // zuerst nach Sorte schauen, falls nicht vorhanden auf Produkt zurückfallen
+    const keyRaw =
+      ((r.variety?.cookingType || r.product?.cookingType) as CookingKey) ||
+      "UNBEKANNT";
+
     const key: CookingKey =
       keyRaw === "FESTKOCHEND" ||
       keyRaw === "VORWIEGEND_FESTKOCHEND" ||
       keyRaw === "MEHLIG"
         ? keyRaw
         : "UNBEKANNT";
+
     sums[key] += kg;
     sums.total += kg;
   }
+
   return sums;
 }
 
@@ -101,15 +130,16 @@ function SummaryRow({ label, sums }: { label: string; sums: ReturnType<typeof ca
     gap: "0.5rem",
     marginTop: "0.5rem",
   };
-  const chip: React.CSSProperties = {
-    background: "#1f2937",
-    padding: "0.5rem 0.75rem",
-    borderRadius: "0.5rem",
-    border: "1px solid #374151",
-    display: "flex",
-    justifyContent: "space-between",
-    fontSize: "0.9rem",
-  };
+const chip: React.CSSProperties = {
+  background: "#111827",
+  color: "#f9fafb",
+  padding: "0.5rem 0.75rem",
+  borderRadius: "0.5rem",
+  border: "1px solid #374151",
+  display: "flex",
+  justifyContent: "space-between",
+  fontSize: "0.9rem",
+};
   return (
     <div style={{ marginTop: "0.75rem" }}>
       <div style={{ fontWeight: 600, marginBottom: "0.25rem" }}>{label}</div>
@@ -127,28 +157,34 @@ function SummaryRow({ label, sums }: { label: string; sums: ReturnType<typeof ca
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("farmerStock");
-
   const [farmers, setFarmers] = useState<Farmer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const safeProducts = Array.isArray(products) ? products : [];
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [farmerStocks, setFarmerStocks] = useState<FarmerStock[]>([]);
   const [varieties, setVarieties] = useState<Variety[]>([]);
-
+  const safeVarieties = Array.isArray(varieties) ? varieties : [];
   const [message, setMessage] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
   
   // Login
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
-  // Stammdaten-Formulare
+     // Stammdaten-Formulare
+ // Stammdaten-Formulare – Bauern
   const [farmerName, setFarmerName] = useState("");
-  const [farmerFarmName, setFarmerFarmName] = useState("");
-  const [farmerContact, setFarmerContact] = useState("");
+  const [farmerStreet, setFarmerStreet] = useState("");
+  const [farmerPostalCode, setFarmerPostalCode] = useState("");
+  const [farmerCity, setFarmerCity] = useState("");
+  const [farmerGGN, setFarmerGGN] = useState("");
+  const [farmerLoginEmail, setFarmerLoginEmail] = useState("");
+  const [farmerLoginPassword, setFarmerLoginPassword] = useState("");
 
   const [productName, setProductName] = useState("");
-  const [productCookingType, setProductCookingType] = useState("FESTKOCHEND");
+  const [productCookingType, setProductCookingType] =
+    useState<CookingType>("FESTKOCHEND");
   const [productPackagingType, setProductPackagingType] = useState("");
   const [productNumber, setProductNumber] = useState("");
   const [productUnitKg, setProductUnitKg] = useState("2");
@@ -158,28 +194,32 @@ export default function App() {
   const [varietyName, setVarietyName] = useState("");
   const [varietyCookingType, setVarietyCookingType] =
     useState<CookingType>("FESTKOCHEND");
-  const [varietyQuality, setVarietyQuality] = useState("Q1");
+  const [varietyQuality, setVarietyQuality] =
+  useState<VarietyQuality>("Q1");
   const [customerName, setCustomerName] = useState("");
   const [customerRegion, setCustomerRegion] = useState("");
 
-  // Bauernlager-Filter
-  const [stockFilterFarmerId, setStockFilterFarmerId] = useState<number | "">(
+   // Bauernlager-Filter
+   const [stockProductFilterId, setStockProductFilterId] = useState<"alle" | number>("alle");
+   const [stockFilterFarmerId, setStockFilterFarmerId] = useState<number | "">(
     ""
   );
   const [stockCookingFilter, setStockCookingFilter] = useState<string>("alle");
-  const [stockProductFilterId, setStockProductFilterId] = useState<
+  const [stockVarietyFilterId, setStockVarietyFilterId] = useState<
     number | "alle"
   >("alle");
+    const [stockQualityFilter, setStockQualityFilter] = useState<string>("alle");
 
-  // Bauernlager-Formulare (nur Bauer)
-  const [invProductId, setInvProductId] = useState<number | "">("");
+  // Bauernlager-Formulare (nur Bauer) – jetzt auf Sorte
+  const [invVarietyId, setInvVarietyId] = useState<number | "">("");
   const [invQuantityKg, setInvQuantityKg] = useState("");
 
-  const [privProductId, setPrivProductId] = useState<number | "">("");
+  const [privVarietyId, setPrivVarietyId] = useState<number | "">("");
   const [privQuantityKg, setPrivQuantityKg] = useState("");
 
-  const [egProductId, setEgProductId] = useState<number | "">("");
+  const [egVarietyId, setEgVarietyId] = useState<number | "">("");
   const [egQuantityKg, setEgQuantityKg] = useState("");
+
 
   // === Nachrichten-Helfer ===
 
@@ -269,7 +309,7 @@ export default function App() {
     }
   }
 
-  function handleLogout() {
+   function handleLogout() {
     setCurrentUser(null);
     setFarmerStocks([]);
     showMessage("Abgemeldet");
@@ -280,42 +320,65 @@ export default function App() {
 // Rolle auslesen
 const role = currentUser?.role;
 
-// Bauer ist nur, wer die Rolle FARMER hat und eine farmerId besitzt
-const isFarmer = role === "FARMER" && currentUser?.farmerId != null;
+// Bauer = Rolle FARMER (farmerId prüfen wir extra in den Actions)
+const isFarmer = role === "FARMER";
 
-// ORGANISATOR/Admin sind alle anderen, die eingeloggt sind und NICHT Bauer sind
-// (also ORGANISATOR, EG_ADMIN, PACKER, eventuell später ADMIN)
+// EG-Admin (kann Stammdaten bearbeiten)
+const isEgAdmin = role === "EG_ADMIN";
+
+// Organisator (nur Übersicht, keine Stammdaten)
+const isOrganizer = role === "ORGANISATOR";
+
+// PACKER, falls du später was brauchst
+const isPacker = role === "PACKER";
+
+// Nutzer, die Stammdaten sehen/bearbeiten dürfen
+const canEditStammdaten = !!currentUser && isEgAdmin;
+
+// Nutzer, die die große Bauernlager-Übersicht sehen dürfen
 const isAdminOrOrg =
-  !!currentUser && (role === "ORGANISATOR" || role === "EG_ADMIN" || role === "PACKER");
+  !!currentUser && (isEgAdmin || isOrganizer || isPacker);
 
   // === Stammdaten: Bauern, Produkte, Kunden ===
 
-  async function handleCreateFarmer(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      const res = await fetch(`${API_URL}/farmers`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: farmerName,
-          farmName: farmerFarmName,
-          contactInfo: farmerContact,
-        }),
-      });
-      if (!res.ok) {
-        showMessage("Fehler beim Anlegen des Bauern");
-        return;
-      }
-      setFarmerName("");
-      setFarmerFarmName("");
-      setFarmerContact("");
-      await loadFarmers();
-      showMessage("Bauer gespeichert");
-    } catch (err) {
-      console.error(err);
+   async function handleCreateFarmer(e: React.FormEvent) {
+  e.preventDefault();
+  try {
+    const res = await fetch(`${API_URL}/farmers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: farmerName,
+        street: farmerStreet,
+        postalCode: farmerPostalCode,
+        city: farmerCity,
+        ggn: farmerGGN,
+        loginEmail: farmerLoginEmail,
+        loginPassword: farmerLoginPassword,
+      }),
+    });
+
+    if (!res.ok) {
       showMessage("Fehler beim Anlegen des Bauern");
+      return;
     }
+
+    // Felder leeren
+    setFarmerName("");
+    setFarmerStreet("");
+    setFarmerPostalCode("");
+    setFarmerCity("");
+    setFarmerGGN("");
+    setFarmerLoginEmail("");
+    setFarmerLoginPassword("");
+
+    await loadFarmers();
+    showMessage("Bauer gespeichert");
+  } catch (err) {
+    console.error(err);
+    showMessage("Fehler beim Anlegen des Bauern");
   }
+}
 
   async function handleCreateProduct(e: React.FormEvent) {
     e.preventDefault();
@@ -402,33 +465,31 @@ const isAdminOrOrg =
     }
   }
 
-  // === Bauernlager: Inventur + Verkäufe (nur Bauer) ===
+   // === Bauernlager: Inventur + Verkäufe (nur Bauer) ===
 
-  async function handleInventory(e: React.FormEvent) {
-    e.preventDefault();
+  // „echte“ Inventur – wird NUR aus der Confirm-Box aufgerufen
+  async function doInventory(varietyId: number, qtyKg: number) {
     if (!currentUser?.farmerId) {
       showMessage("Kein Bauer zugeordnet");
       return;
     }
-    if (!invProductId) {
-      showMessage("Produkt wählen");
-      return;
-    }
-    const qtyKg = parseKg(invQuantityKg);
+
     try {
       const res = await fetch(`${API_URL}/farmer-stock/inventory`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           farmerId: currentUser.farmerId,
-          productId: invProductId,
-          newQuantityTons: qtyKg, // wir benutzen kg
+          varietyId,             // Sorte
+          newQuantityTons: qtyKg // Backend erwartet dieses Feld, Wert in kg
         }),
       });
+
       if (!res.ok) {
         showMessage("Fehler bei Inventur");
         return;
       }
+
       setInvQuantityKg("");
       await loadFarmerStocks(currentUser.farmerId);
       showMessage("Inventur gespeichert");
@@ -438,25 +499,42 @@ const isAdminOrOrg =
     }
   }
 
-  async function handleSale(
-    e: React.FormEvent,
-    type: "PRIVATE" | "EG",
-    productId: number | "",
-    qtyInput: string,
-    clear: () => void
-  ) {
+  // wird vom Formular aufgerufen – öffnet NUR die Bestätigungsbox
+  function handleInventory(e: React.FormEvent) {
     e.preventDefault();
+
     if (!currentUser?.farmerId) {
       showMessage("Kein Bauer zugeordnet");
       return;
     }
-    if (!productId) {
-      showMessage("Produkt wählen");
+    if (!invVarietyId) {
+      showMessage("Sorte wählen");
       return;
     }
-    const qtyKg = parseKg(qtyInput);
-    if (qtyKg <= 0) {
-      showMessage("Menge muss > 0 sein");
+
+    const qtyKg = parseKg(invQuantityKg);
+    const variety = safeVarieties.find((v) => v.id === invVarietyId);
+
+    setConfirmAction({
+      title: "Inventur speichern?",
+      message: `Sorte ${variety?.name ?? ""} auf ${formatKg(qtyKg)} kg setzen. Sind Sie sicher?`,
+      confirmLabel: "Ja, Inventur speichern",
+      cancelLabel: "Nein, abbrechen",
+      onConfirm: () => {
+        setConfirmAction(null);
+        doInventory(invVarietyId as number, qtyKg);
+      },
+    });
+  }
+
+  // „echter“ Verkauf – wird nur aus Confirm-Box aufgerufen
+  async function doSale(
+    type: "PRIVATE" | "EG",
+    varietyId: number,
+    qtyKg: number
+  ) {
+    if (!currentUser?.farmerId) {
+      showMessage("Kein Bauer zugeordnet");
       return;
     }
 
@@ -466,16 +544,17 @@ const isAdminOrOrg =
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           farmerId: currentUser.farmerId,
-          productId,
-          quantityTons: qtyKg, // kg
-          saleType: type, // PRIVATE oder EG
+          varietyId,            // Sorte
+          quantityTons: qtyKg,  // Backend erwartet dieses Feld, Wert in kg
+          saleType: type,
         }),
       });
+
       if (!res.ok) {
         showMessage("Fehler beim Verbuchen des Verkaufs");
         return;
       }
-      clear();
+
       await loadFarmerStocks(currentUser.farmerId);
       showMessage(
         type === "PRIVATE"
@@ -488,321 +567,370 @@ const isAdminOrOrg =
     }
   }
 
-    // === Bauernlager-Ansicht ===
+  // wird vom Formular aufgerufen – öffnet NUR die Bestätigungsbox
+  function handleSale(
+    e: React.FormEvent,
+    type: "PRIVATE" | "EG",
+    varietyId: number | "",
+    qtyInput: string,
+    clear: () => void
+  ) {
+    e.preventDefault();
 
-  function renderFarmerStockTab() {
-    // effektiver Farmer-Filter:
-    // - Bauer eingeloggt  → immer nur sein eigenes Lager
-    // - Admin/ORGANISATOR → benutzt stockFilterFarmerId (Dropdown)
-    const effectiveFarmerId =
-      isFarmer && currentUser?.farmerId
-        ? currentUser.farmerId
-        : stockFilterFarmerId || undefined;
-
-    // 1) Basis-Liste
-    let filtered = farmerStocks;
-
-    // 2) Nach Bauer filtern
-    if (effectiveFarmerId && typeof effectiveFarmerId === "number") {
-      filtered = filtered.filter((s) => s.farmerId === effectiveFarmerId);
+    if (!currentUser?.farmerId) {
+      showMessage("Kein Bauer zugeordnet");
+      return;
+    }
+    if (!varietyId) {
+      showMessage("Sorte wählen");
+      return;
     }
 
-    // 3) Nach Kocheigenschaft filtern
-    if (stockCookingFilter !== "alle") {
-      filtered = filtered.filter(
-        (s) => s.product?.cookingType === stockCookingFilter
-      );
+    const qtyKg = parseKg(qtyInput);
+    if (qtyKg <= 0) {
+      showMessage("Menge muss > 0 sein");
+      return;
     }
 
-    // 4) Nach Produkt filtern
-    if (
-      stockProductFilterId !== "alle" &&
-      typeof stockProductFilterId === "number"
-    ) {
-      filtered = filtered.filter((s) => s.productId === stockProductFilterId);
-    }
+    const variety = safeVarieties.find((v) => v.id === varietyId);
 
-    // 5) Sortierung: Bauer → Produkt → Kocheigenschaft
-    const sorted = [...filtered].sort((a, b) => {
-      const aFarmer = a.farmer?.name ?? "";
-      const bFarmer = b.farmer?.name ?? "";
-      if (aFarmer !== bFarmer) {
-        return aFarmer.localeCompare(bFarmer, "de");
-      }
-
-      const aProduct = a.product?.name ?? "";
-      const bProduct = b.product?.name ?? "";
-      if (aProduct !== bProduct) {
-        return aProduct.localeCompare(bProduct, "de");
-      }
-
-      const aCook = a.product?.cookingType ?? "";
-      const bCook = b.product?.cookingType ?? "";
-      return aCook.localeCompare(bCook, "de");
+    setConfirmAction({
+      title:
+        type === "PRIVATE"
+          ? "Privatverkauf verbuchen?"
+          : "Verkauf an Eferdinger Landl verbuchen?",
+      message: `Sorte ${variety?.name ?? ""}, Menge ${formatKg(
+        qtyKg
+      )} kg. Sind Sie sicher?`,
+      confirmLabel:
+        type === "PRIVATE"
+          ? "Ja, Privatverkauf verbuchen"
+          : "Ja, Verkauf an EG verbuchen",
+      cancelLabel: "Nein, abbrechen",
+      onConfirm: () => {
+        setConfirmAction(null);
+        clear(); // Felder leeren
+        doSale(type, varietyId as number, qtyKg);
+      },
     });
+  }
 
-    return (
-      <div
-        style={{
-          marginTop: "1rem",
-          display: "grid",
-          gap: "1rem",
-          gridTemplateColumns: isFarmer ? "2fr 1fr" : "1fr",
-        }}
-      >
-        {/* Lagerübersicht */}
-        <section style={{ border: "1px solid #4b5563", padding: "1rem" }}>
-          <h2>Bauernlager (in kg)</h2>
+// === Bauernlager-Ansicht (Sorten) ===
 
-          {/* Filter nur für Organisator/Admin */}
-          {isAdminOrOrg && (
-            <>
-              <div style={{ marginBottom: "0.5rem" }}>
-                <label>Bauer: </label>
-                <select
-                  value={stockFilterFarmerId}
-                  onChange={(e) =>
-                    setStockFilterFarmerId(
-                      e.target.value ? Number(e.target.value) : ""
-                    )
-                  }
-                >
-                  <option value="">alle Bauern</option>
-                  {farmers.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name} {f.farmName ? `(${f.farmName})` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
+function renderFarmerStockTab() {
+  const effectiveFarmerId =
+    isFarmer && currentUser?.farmerId
+      ? currentUser.farmerId
+      : stockFilterFarmerId || undefined;
 
-              <div
-                style={{
-                  display: "flex",
-                  gap: "0.5rem",
-                  marginBottom: "0.5rem",
-                  flexWrap: "wrap",
-                }}
-              >
-                <div>
-                  <label>Kocheigenschaft: </label>
-                  <select
-                    value={stockCookingFilter}
-                    onChange={(e) => setStockCookingFilter(e.target.value)}
-                  >
-                    <option value="alle">alle</option>
-                    <option value="FESTKOCHEND">festkochend</option>
-                    <option value="VORWIEGEND_FESTKOCHEND">
-                      vorwiegend festkochend
-                    </option>
-                    <option value="MEHLIG">mehlig</option>
-                  </select>
-                </div>
+  let filtered = farmerStocks;
 
-                <div>
-                  <label>Produkt: </label>
-                  <select
-                    value={stockProductFilterId}
-                    onChange={(e) =>
-                      setStockProductFilterId(
-                        e.target.value ? Number(e.target.value) : "alle"
-                      )
-                    }
-                  >
-                    <option value="alle">alle</option>
-                    {safeProducts.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} ({p.packagingType})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </>
-          )}
+  // 1) Nach Bauer filtern
+  if (effectiveFarmerId && typeof effectiveFarmerId === "number") {
+    filtered = filtered.filter((s) => s.farmerId === effectiveFarmerId);
+  }
 
-          {isFarmer && (
-            <p style={{ fontSize: "0.85rem", marginBottom: "0.5rem" }}>
-              Du siehst hier nur deinen eigenen Lagerbestand.
-            </p>
-          )}
-
-          <table style={{ width: "100%", fontSize: "0.85rem" }}>
-            <thead>
-              <tr>
-                <th>Bauer</th>
-                <th>Produkt</th>
-                <th>Kocheigenschaft</th>
-                <th>Verpackung</th>
-                <th>Menge kg</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((s) => (
-                <tr key={s.id}>
-                  <td>
-                    {s.farmer?.name ?? "–"}{" "}
-                    {s.farmer?.farmName ? `(${s.farmer.farmName})` : ""}
-                  </td>
-                  <td>{s.product?.name ?? "–"}</td>
-                  <td>{s.product?.cookingType ?? "–"}</td>
-                  <td>{s.product?.packagingType ?? "–"}</td>
-                  <td>{formatKg(s.quantityTons)}</td>
-                </tr>
-              ))}
-              {sorted.length === 0 && (
-                <tr>
-                  <td colSpan={5}>Keine Lagerdaten vorhanden.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-          {/* Summen nach Kocheigenschaft */}
-{(() => {
-  const sumsFiltered = calcCookingSums(filtered);
-  return <SummaryRow label="Summen (aktuelle Ansicht)" sums={sumsFiltered} />;
-})()}
-
-/* Beim Organisator zusätzlich Gesamtsumme */
-{isAdminOrOrg &&
-  stockFilterFarmerId === "" &&
-  stockCookingFilter === "alle" &&
-  stockProductFilterId === "alle" && (() => {
-    const sumsAll = calcCookingSums(farmerStocks);
-    return <SummaryRow label="Summen (alle Bauern)" sums={sumsAll} />;
-  })()}
-        </section>
-
-        {/* Lager pflegen – nur für Bauer */}
-        {isFarmer && (
-          <section style={{ border: "1px solid #4b5563", padding: "1rem" }}>
-            <h2>Lager pflegen</h2>
-
-            {/* Inventur */}
-            <h3 style={{ marginTop: 0 }}>Inventur</h3>
-            <form onSubmit={handleInventory}>
-              <label>Produkt</label>
-              <select
-                value={invProductId}
-                onChange={(e) =>
-                  setInvProductId(
-                    e.target.value ? Number(e.target.value) : ""
-                  )
-                }
-              >
-                <option value="">– Produkt –</option>
-                {safeProducts.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.packagingType})
-                  </option>
-                ))}
-              </select>
-
-              <label>Neuer Bestand (kg)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={invQuantityKg}
-                onChange={(e) => setInvQuantityKg(e.target.value)}
-                required
-              />
-
-              <button type="submit" style={{ marginTop: "0.5rem" }}>
-                Inventur speichern
-              </button>
-            </form>
-
-            {/* Verkauf privat */}
-            <h3 style={{ marginTop: "1rem" }}>Verkauf privat</h3>
-            <form
-              onSubmit={(e) =>
-                handleSale(e, "PRIVATE", privProductId, privQuantityKg, () => {
-                  setPrivQuantityKg("");
-                  setPrivProductId("");
-                })
-              }
-            >
-              <label>Produkt</label>
-              <select
-                value={privProductId}
-                onChange={(e) =>
-                  setPrivProductId(
-                    e.target.value ? Number(e.target.value) : ""
-                  )
-                }
-              >
-                <option value="">– Produkt –</option>
-                {safeProducts.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.packagingType})
-                  </option>
-                ))}
-              </select>
-
-              <label>Menge (kg)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={privQuantityKg}
-                onChange={(e) => setPrivQuantityKg(e.target.value)}
-                required
-              />
-
-              <button type="submit" style={{ marginTop: "0.5rem" }}>
-                Privatverkauf verbuchen
-              </button>
-            </form>
-
-            {/* Verkauf an Eferdinger Landl */}
-            <h3 style={{ marginTop: "1rem" }}>Verkauf an Eferdinger Landl</h3>
-            <form
-              onSubmit={(e) =>
-                handleSale(e, "EG", egProductId, egQuantityKg, () => {
-                  setEgQuantityKg("");
-                  setEgProductId("");
-                })
-              }
-            >
-              <label>Produkt</label>
-              <select
-                value={egProductId}
-                onChange={(e) =>
-                  setEgProductId(
-                    e.target.value ? Number(e.target.value) : ""
-                  )
-                }
-              >
-                <option value="">– Produkt –</option>
-                {safeProducts.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.packagingType})
-                  </option>
-                ))}
-              </select>
-
-              <label>Menge (kg)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={egQuantityKg}
-                onChange={(e) => setEgQuantityKg(e.target.value)}
-                required
-              />
-
-              <button type="submit" style={{ marginTop: "0.5rem" }}>
-                Verkauf an EG verbuchen
-              </button>
-            </form>
-          </section>
-        )}
-      </div>
+  // 2) Nach Kocheigenschaft filtern
+  if (stockCookingFilter !== "alle") {
+    filtered = filtered.filter(
+      (s) =>
+        s.variety?.cookingType === stockCookingFilter ||
+        (s as any).product?.cookingType === stockCookingFilter
     );
   }
 
+  // 3) Nach Qualität / Sortierung filtern
+  if (stockQualityFilter !== "alle") {
+    filtered = filtered.filter(
+      (s) => s.variety?.quality === stockQualityFilter
+    );
+  }
+
+  // 4) Nach Sorte filtern (wir benutzen stockProductFilterId als variety-Filter)
+  if (
+    stockProductFilterId !== "alle" &&
+    typeof stockProductFilterId === "number"
+  ) {
+    filtered = filtered.filter((s) => s.varietyId === stockProductFilterId);
+  }
+
+  // 5) Sortierung: Bauer -> Sorte -> Qualität
+  const sorted = [...filtered].sort((a, b) => {
+    const aFarmer = a.farmer?.name ?? "";
+    const bFarmer = b.farmer?.name ?? "";
+    if (aFarmer !== bFarmer) {
+      return aFarmer.localeCompare(bFarmer, "de");
+    }
+
+    const aVar = a.variety?.name ?? "";
+    const bVar = b.variety?.name ?? "";
+    if (aVar !== bVar) {
+      return aVar.localeCompare(bVar, "de");
+    }
+
+    const aQual = a.variety?.quality ?? "";
+    const bQual = b.variety?.quality ?? "";
+    return aQual.localeCompare(bQual, "de");
+  });
+
+  // 6) Summen nach Kocheigenschaft aus den gefilterten Zeilen
+  const cookingSums = calcCookingSums(sorted);
+
+  return (
+    <div className="farmer-stock-grid" style={{ marginTop: "1rem" }}>
+      {/* Lagerübersicht */}
+      <section style={{ border: "1px solid #4b5563", padding: "1rem" }}>
+        <h2>Bauernlager (in kg, nach Sorte)</h2>
+
+        {isAdminOrOrg && (
+          <div className="filter-row">
+            {/* Bauer-Filter */}
+            <div>
+              <label>Bauer: </label>
+              <select
+                value={stockFilterFarmerId}
+                onChange={(e) =>
+                  setStockFilterFarmerId(
+                    e.target.value ? Number(e.target.value) : ""
+                  )
+                }
+              >
+                <option value="">alle</option>
+                {farmers.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Kocheigenschaft */}
+            <div>
+              <label>Kocheigenschaft: </label>
+              <select
+                value={stockCookingFilter}
+                onChange={(e) => setStockCookingFilter(e.target.value)}
+              >
+                <option value="alle">alle</option>
+                <option value="FESTKOCHEND">festkochend</option>
+                <option value="VORWIEGEND_FESTKOCHEND">
+                  vorwiegend festkochend
+                </option>
+                <option value="MEHLIG">mehlig</option>
+              </select>
+            </div>
+
+            {/* Qualität */}
+            <div>
+              <label>Qualität / Sortierung: </label>
+              <select
+                value={stockQualityFilter}
+                onChange={(e) => setStockQualityFilter(e.target.value)}
+              >
+                <option value="alle">alle</option>
+                <option value="Q1">1. Qualität</option>
+                <option value="Q2">2. Qualität</option>
+                <option value="UEBERGROESSE">Übergrößen</option>
+              </select>
+            </div>
+
+            {/* Sorte */}
+            <div>
+              <label>Sorte: </label>
+              <select
+                value={stockProductFilterId}
+                onChange={(e) =>
+                  setStockProductFilterId(
+                    e.target.value ? Number(e.target.value) : "alle"
+                  )
+                }
+              >
+                <option value="alle">alle</option>
+                {safeVarieties.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name} ({v.quality})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+
+        {isFarmer && (
+          <p style={{ fontSize: "0.85rem", marginBottom: "0.5rem" }}>
+            Du siehst hier nur deinen eigenen Lagerbestand.
+          </p>
+        )}
+
+        <table style={{ width: "100%", fontSize: "0.85rem" }}>
+          <thead>
+            <tr>
+              <th>Bauer</th>
+              <th>Sorte</th>
+              <th>Kocheigenschaft</th>
+              <th>Qualität</th>
+              <th>Menge kg</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((s) => (
+              <tr key={s.id}>
+                <td>
+                  {s.farmer?.name ?? "–"}{" "}
+                  {s.farmer?.farmName ? `(${s.farmer.farmName})` : ""}
+                </td>
+                <td>{s.variety?.name ?? "–"}</td>
+                <td>{s.variety?.cookingType ?? "–"}</td>
+                <td>{s.variety?.quality ?? "–"}</td>
+                <td>{formatKg(s.quantityTons)}</td>
+              </tr>
+            ))}
+            {sorted.length === 0 && (
+              <tr>
+                <td colSpan={5}>Keine Lagerdaten vorhanden.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+
+        <SummaryRow label="Summe nach Kocheigenschaft" sums={cookingSums} />
+      </section>
+
+      {/* Lager pflegen – nur für Bauer */}
+      {isFarmer && (
+        <section style={{ border: "1px solid #4b5563", padding: "1rem" }}>
+          <h2>Lager pflegen</h2>
+
+          {/* Inventur */}
+          <h3 style={{ marginTop: 0 }}>Inventur</h3>
+          <form onSubmit={handleInventory}>
+            <label>Sorte</label>
+            <select
+              value={invVarietyId}
+              onChange={(e) =>
+                setInvVarietyId(
+                  e.target.value ? Number(e.target.value) : ""
+                )
+              }
+            >
+              <option value="">– Sorte wählen –</option>
+              {safeVarieties.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name} ({v.quality}, {v.cookingType.toLowerCase()})
+                </option>
+              ))}
+            </select>
+
+            <label>Neuer Bestand (kg)</label>
+            <input
+              type="number"
+              step="0.01"
+              value={invQuantityKg}
+              onChange={(e) => setInvQuantityKg(e.target.value)}
+              required
+            />
+
+            <button type="submit" style={{ marginTop: "0.5rem" }}>
+              Inventur speichern
+            </button>
+          </form>
+
+          {/* Verkauf privat */}
+          <h3 style={{ marginTop: "1rem" }}>Verkauf privat</h3>
+          <form
+            onSubmit={(e) =>
+              handleSale(
+                e,
+                "PRIVATE",
+                privVarietyId,
+                privQuantityKg,
+                () => {
+                  setPrivQuantityKg("");
+                  setPrivVarietyId("");
+                }
+              )
+            }
+          >
+            <label>Sorte</label>
+            <select
+              value={privVarietyId}
+              onChange={(e) =>
+                setPrivVarietyId(
+                  e.target.value ? Number(e.target.value) : ""
+                )
+              }
+            >
+              <option value="">– Sorte –</option>
+              {safeVarieties.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name} ({v.quality})
+                </option>
+              ))}
+            </select>
+
+            <label>Menge (kg)</label>
+            <input
+              type="number"
+              step="0.01"
+              value={privQuantityKg}
+              onChange={(e) => setPrivQuantityKg(e.target.value)}
+              required
+            />
+
+            <button type="submit" style={{ marginTop: "0.5rem" }}>
+              Privatverkauf verbuchen
+            </button>
+          </form>
+
+          {/* Verkauf an Eferdinger Landl */}
+          <h3 style={{ marginTop: "1rem" }}>Verkauf an Eferdinger Landl</h3>
+          <form
+            onSubmit={(e) =>
+              handleSale(e, "EG", egVarietyId, egQuantityKg, () => {
+                setEgQuantityKg("");
+                setEgVarietyId("");
+              })
+            }
+          >
+            <label>Sorte</label>
+            <select
+              value={egVarietyId}
+              onChange={(e) =>
+                setEgVarietyId(
+                  e.target.value ? Number(e.target.value) : ""
+                )
+              }
+            >
+              <option value="">– Sorte –</option>
+              {safeVarieties.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name} ({v.quality})
+                </option>
+              ))}
+            </select>
+
+            <label>Menge (kg)</label>
+            <input
+              type="number"
+              step="0.01"
+              value={egQuantityKg}
+              onChange={(e) => setEgQuantityKg(e.target.value)}
+              required
+            />
+
+            <button type="submit" style={{ marginTop: "0.5rem" }}>
+              Verkauf an EG verbuchen
+            </button>
+          </form>
+        </section>
+      )}
+    </div>
+  );
+}
   // === Stammdaten-Tab ===
 
-  function renderStammdatenTab() {
-    if (!isAdminOrOrg) {
+ function renderStammdatenTab() {
+  if (!canEditStammdaten) {
       return <p>Stammdaten können nur von Organisator/Admin gepflegt werden.</p>;
     }
 
@@ -815,39 +943,73 @@ const isAdminOrOrg =
           gridTemplateColumns: "repeat(3, 1fr)",
         }}
       >
-        {/* Bauern */}
-        <section style={{ border: "1px solid #4b5563", padding: "1rem" }}>
-          <h2>Bauern</h2>
-          <form onSubmit={handleCreateFarmer}>
-            <label>Name</label>
-            <input
-              value={farmerName}
-              onChange={(e) => setFarmerName(e.target.value)}
-              required
-            />
-            <label>Betrieb</label>
-            <input
-              value={farmerFarmName}
-              onChange={(e) => setFarmerFarmName(e.target.value)}
-            />
-            <label>Kontakt</label>
-            <input
-              value={farmerContact}
-              onChange={(e) => setFarmerContact(e.target.value)}
-            />
-            <button type="submit" style={{ marginTop: "0.5rem" }}>
-              Speichern
-            </button>
-          </form>
+              {/* Bauern */}
+      <section style={{ border: "1px solid #4b5563", padding: "1rem" }}>
+  <h2>Bauern</h2>
+  <form onSubmit={handleCreateFarmer}>
+    <label>Name</label>
+    <input
+      value={farmerName}
+      onChange={(e) => setFarmerName(e.target.value)}
+      required
+    />
 
-          <ul style={{ marginTop: "0.5rem", fontSize: "0.85rem" }}>
-            {farmers.map((f) => (
-              <li key={f.id}>
-                {f.name} {f.farmName ? `(${f.farmName})` : ""}
-              </li>
-            ))}
-          </ul>
-        </section>
+    <label>Straße / Hausnummer</label>
+    <input
+      value={farmerStreet}
+      onChange={(e) => setFarmerStreet(e.target.value)}
+    />
+
+    <label>PLZ</label>
+    <input
+      value={farmerPostalCode}
+      onChange={(e) => setFarmerPostalCode(e.target.value)}
+    />
+
+    <label>Ort</label>
+    <input
+      value={farmerCity}
+      onChange={(e) => setFarmerCity(e.target.value)}
+    />
+
+    <label>GGN-Nummer (optional)</label>
+    <input
+      value={farmerGGN}
+      onChange={(e) => setFarmerGGN(e.target.value)}
+    />
+
+    <label>Login E-Mail (für Bauern-Zugang)</label>
+    <input
+      type="email"
+      value={farmerLoginEmail}
+      onChange={(e) => setFarmerLoginEmail(e.target.value)}
+    />
+
+    <label>Login Passwort</label>
+    <input
+      type="password"
+      value={farmerLoginPassword}
+      onChange={(e) => setFarmerLoginPassword(e.target.value)}
+    />
+
+    <button type="submit" style={{ marginTop: "0.5rem" }}>
+      Speichern
+    </button>
+  </form>
+
+  <ul style={{ marginTop: "0.5rem", fontSize: "0.85rem" }}>
+    {farmers.map((f) => (
+      <li key={f.id}>
+        {f.name}
+        {f.address
+          ? ` – ${f.address.street ?? ""}, ${f.address.postalCode ?? ""} ${
+              f.address.city ?? ""
+            }`
+          : ""}
+      </li>
+    ))}
+  </ul>
+</section>
 
                 {/* Produkte */}
         <section style={{ border: "1px solid #4b5563", padding: "1rem" }}>
@@ -1008,7 +1170,7 @@ const isAdminOrOrg =
           </form>
 
           <ul style={{ marginTop: "0.5rem", fontSize: "0.85rem" }}>
-            {varieties.map((v) => (
+            {safeVarieties.map((v) => (
               <li key={v.id}>
                 {v.name} – {v.cookingType} – {v.quality}
               </li>
@@ -1049,70 +1211,143 @@ const isAdminOrOrg =
   }
 
   // === Haupt-Render ===
+  return (
+    <div className="app-root">
+      <h1 className="app-title">Eferdinger Landl Tool</h1>
 
-return (
-  <div className="app-root">
-    <h1 className="app-title">Eferdinger Landl – Erdäpfel-Tool</h1>
+      {/* Login-Bereich */}
+      <div className="login-bar">
+        {!currentUser ? (
+          <form onSubmit={handleLogin} className="login-form">
+            <input
+              placeholder="E-Mail"
+              value={loginEmail}
+              onChange={(e) => setLoginEmail(e.target.value)}
+            />
+            <input
+              type="password"
+              placeholder="Passwort"
+              value={loginPassword}
+              onChange={(e) => setLoginPassword(e.target.value)}
+            />
+            <button type="submit">Login</button>
+          </form>
+        ) : (
+          <>
+            <span>
+              Eingeloggt als{" "}
+              <strong>
+                {currentUser.name} ({currentUser.role})
+              </strong>
+            </span>
+            <button onClick={handleLogout}>Logout</button>
+          </>
+        )}
+      </div>
 
-    {/* Login-Bereich */}
-    <div className="login-bar">
-      {!currentUser ? (
-        <form onSubmit={handleLogin} className="login-form">
-          <input
-            placeholder="E-Mail"
-            value={loginEmail}
-            onChange={(e) => setLoginEmail(e.target.value)}
-          />
-          <input
-            type="password"
-            placeholder="Passwort"
-            value={loginPassword}
-            onChange={(e) => setLoginPassword(e.target.value)}
-          />
-          <button type="submit">Login</button>
-        </form>
-      ) : (
-        <>
-          <span>
-            Eingeloggt als{" "}
-            <strong>
-              {currentUser.name} ({currentUser.role})
-            </strong>
-          </span>
-          <button onClick={handleLogout}>Logout</button>
-        </>
-      )}
-    </div>
-
-    {/* Tabs */}
-    <div className="tab-bar">
-      {isAdminOrOrg && (
+      {/* Tabs */}
+<div className="tab-bar">
+  {canEditStammdaten && (
+          <button
+            onClick={() => setTab("stamm")}
+            className={`tab-button ${
+              tab === "stamm" ? "tab-button--active" : ""
+            }`}
+          >
+            Stammdaten
+          </button>
+        )}
         <button
-          onClick={() => setTab("stamm")}
-          className={`tab-button ${tab === "stamm" ? "tab-button--active" : ""}`}
+          onClick={() => setTab("farmerStock")}
+          className={`tab-button ${
+            tab === "farmerStock" ? "tab-button--active" : ""
+          }`}
         >
-          Stammdaten
+          Bauernlager
         </button>
+      </div>
+
+      {/* Meldungen */}
+      {message && <div className="message-bar">{message}</div>}
+
+      {/* Inhalt */}
+     {tab === "stamm" && canEditStammdaten && renderStammdatenTab()}
+{tab === "stamm" && !canEditStammdaten && (
+        <p className="info-text">
+          Stammdaten sind nur für Organisator/Admin sichtbar.
+        </p>
       )}
-      <button
-        onClick={() => setTab("farmerStock")}
-        className={`tab-button ${tab === "farmerStock" ? "tab-button--active" : ""}`}
-      >
-        Bauernlager
-      </button>
+      {tab === "farmerStock" && renderFarmerStockTab()}
+
+            {/* Bestätigungsdialog für Lagerbuchungen */}
+      {confirmAction && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              background: "white",
+              borderRadius: "12px",
+              padding: "1.5rem 2rem",
+              maxWidth: "360px",
+              width: "90%",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+            }}
+          >
+            <h2 style={{ marginTop: 0, marginBottom: "0.75rem" }}>
+              {confirmAction.title}
+            </h2>
+
+            <p style={{ marginBottom: "1.25rem" }}>
+              {confirmAction.message}
+            </p>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "0.75rem",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setConfirmAction(null)}
+                style={{
+                  padding: "0.4rem 0.9rem",
+                  borderRadius: "999px",
+                  border: "1px solid #d1d5db",
+                  background: "white",
+                }}
+              >
+                {confirmAction.cancelLabel ?? "Abbrechen"}
+              </button>
+
+              <button
+                type="button"
+                onClick={confirmAction.onConfirm}
+                style={{
+                  padding: "0.4rem 0.9rem",
+                  borderRadius: "999px",
+                  border: "none",
+                  background: "#0f766e",
+                  color: "white",
+                  fontWeight: 500,
+                }}
+              >
+                {confirmAction.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-
-    {/* Meldungen */}
-    {message && <div className="message-bar">{message}</div>}
-
-    {/* Inhalt */}
-    {tab === "stamm" && isAdminOrOrg && renderStammdatenTab()}
-    {tab === "stamm" && !isAdminOrOrg && (
-      <p className="info-text">
-        Stammdaten sind nur für Organisator/Admin sichtbar.
-      </p>
-    )}
-    {tab === "farmerStock" && renderFarmerStockTab()}
-  </div>
-);
+  );
 }

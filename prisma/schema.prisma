@@ -34,8 +34,8 @@ enum PackagingType {
 }
 
 enum VarietyQuality {
-  Q1           // 1. Qualität
-  Q2           // 2. Qualität
+  Q1 // 1. Qualität
+  Q2 // 2. Qualität
   UEBERGROESSE // Übergrößen
 }
 
@@ -58,29 +58,38 @@ model User {
 }
 
 model Farmer {
-  id          Int     @id @default(autoincrement())
-  name        String
-  farmName    String?
-  contactInfo String?
+  id           Int       @id @default(autoincrement())
+  name         String
 
-  addressId Int?
-  address   Address? @relation(fields: [addressId], references: [id])
+  // alte Felder, die dein Frontend noch nutzt
+  farmName     String?
+  contactInfo  String?
 
-  users                User[]
-  deliveries           Delivery[]
-  farmerStocks         FarmerStock[]
-  farmerStockMovements FarmerStockMovement[]
+  // Adresse über Address-Modell (N I C H T löschen, wird von Address und Delivery erwartet)
+  addressId    Int?
+  address      Address?  @relation(fields: [addressId], references: [id])
+
+  // NEU: GGN + Zugangsdaten für den Bauern
+  ggn          String?
+  email        String?   @unique
+  passwordHash String?
+
+  // Relationen – werden von anderen Modellen referenziert (User, Delivery, Lager …)
+  deliveries   Delivery[]
+  farmerStocks FarmerStock[]
+  movements    FarmerStockMovement[]
+  users        User[]
 }
 
 model Address {
-  id      Int     @id @default(autoincrement())
-  street  String
-  zip     String
-  city    String
-  country String? @default("Österreich")
+  id         Int      @id @default(autoincrement())
+  street     String?
+  postalCode String?
+  city       String?
+  country    String?
 
-  farmers   Farmer[]
-  customers Customer[]
+  farmers    Farmer[]
+  customers  Customer[]
 }
 
 model Customer {
@@ -119,19 +128,18 @@ model Product {
   washingRuns          WashingRun[]
   inventories          Inventory[]
   prices               Price[]
-  farmerStockMovements FarmerStockMovement[]
   packagingRuns        PackagingRun[]
   orders               Order[]
-  FarmerStock          FarmerStock[]
 }
 
 model Variety {
   id          Int            @id @default(autoincrement())
-  name        String         @unique
+  name        String
   cookingType CookingType
   quality     VarietyQuality
 
-  // aktuell keine Relationen – wird später für Bauernlager / Planung genutzt
+  farmerStocks         FarmerStock[]
+  farmerStockMovements FarmerStockMovement[]
 }
 
 model CustomerProduct {
@@ -244,9 +252,13 @@ model FarmerStock {
   id           Int      @id @default(autoincrement())
   farmer       Farmer   @relation(fields: [farmerId], references: [id])
   farmerId     Int
+
   variety      Variety  @relation(fields: [varietyId], references: [id])
   varietyId    Int
+
+  // wir speichern hier kg – der Name quantityTons bleibt aus historischen Gründen
   quantityTons Decimal
+
   updatedAt    DateTime @updatedAt
 
   @@unique([farmerId, varietyId])
@@ -256,11 +268,15 @@ model FarmerStockMovement {
   id            Int       @id @default(autoincrement())
   farmer        Farmer    @relation(fields: [farmerId], references: [id])
   farmerId      Int
-  product       Product   @relation(fields: [productId], references: [id])
-  productId     Int
-  changeTons    Decimal // + = Zugang, - = Abgang
-  reason        String // z.B. "INVENTORY", "DELIVERY_TO_PACKER", "DIRECT_SALE"
+
+  variety       Variety   @relation(fields: [varietyId], references: [id])
+  varietyId     Int
+
+  changeTons    Decimal   // hier ebenfalls kg
+  reason        String    // z.B. "INVENTORY", "SALE_PRIVATE", "SALE_EG"
+
   refDelivery   Delivery? @relation(fields: [refDeliveryId], references: [id])
   refDeliveryId Int?
+
   createdAt     DateTime  @default(now())
 }

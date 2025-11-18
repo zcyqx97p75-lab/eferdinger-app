@@ -19,6 +19,35 @@
   margin-bottom: 0.25rem;
 }
 
+.farmer-stock-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 900px) {
+  .farmer-stock-grid {
+    display: block;
+  }
+
+  .farmer-stock-grid > section {
+    margin-bottom: 1rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .app-title {
+    font-size: 1.8rem;
+    line-height: 1.2;
+    margin-bottom: 0.5rem;
+  }
+
+  .login-bar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+
 /* === Login-Bereich === */
 
 .login-bar {
@@ -92,4 +121,52 @@
   margin-top: 1rem;
   font-size: 0.9rem;
   opacity: 0.9;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+/* Rahmen für die ganze App */
+.app-root {
+  max-width: 1200px;   /* Seite wird nicht breiter als 1200px */
+  margin: 0 auto;      /* zentriert */
+  padding: 1rem;       /* etwas Abstand zum Rand */
+  box-sizing: border-box;
+}
+
+/* Wenn dir alles zu groß wirkt: */
+body {
+  font-size: 14px;   /* optional: etwas kleinere Schrift */
+}
+
+/* Filterzeile im Bauernlager (Organisator) */
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  align-items: flex-end;
+}
+
+.filter-row > div {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+}
+
+.filter-row label {
+  margin-bottom: 0.15rem;
+}
+
+.filter-row select {
+  padding: 0.4rem 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid #4b5563;
+  background: #111827;
+  color: #e5e7eb;
 }

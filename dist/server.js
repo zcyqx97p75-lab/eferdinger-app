@@ -61,38 +61,53 @@ app.get("/api/farmers", async (_req, res) => {
     res.json(farmers);
 });
 app.post("/api/farmers", async (req, res) => {
-    const { name, farmName, contactInfo } = req.body;
-    if (!name) {
-        return res.status(400).json({ error: "Name ist erforderlich" });
-    }
+  const { name, fullAddress, ggnNumber, loginEmail, loginPassword } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ error: "Name ist erforderlich" });
+  }
+
+  try {
     const farmer = await prisma.farmer.create({
-        data: { name, farmName, contactInfo },
+      data: {
+        name,
+        fullAddress,
+        ggnNumber,
+        loginEmail,
+        loginPassword,
+      },
     });
+
     res.status(201).json(farmer);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Fehler beim Anlegen des Bauern" });
+  }
 });
 /**
  * PRODUKTE
  */
 app.get("/api/products", async (_req, res) => {
-    const products = await prisma.product.findMany();
-    res.json(products);
-});
-app.post("/api/products", async (req, res) => {
-    const { name, cookingType, packagingType, productNumber } = req.body;
-    if (!name || !cookingType || !packagingType) {
-        return res
-            .status(400)
-            .json({ error: "Name, Kocheigenschaft und Verpackungsart sind erforderlich" });
-    }
-    const product = await prisma.product.create({
-        data: {
-            name,
-            cookingType,
-            packagingType,
-            productNumber,
-        },
+  try {
+    const products = await prisma.product.findMany({
+      include: { variety: true, packaging: true },
+      orderBy: { id: "asc" },
     });
-    res.status(201).json(product);
+
+    // Legacy-kompatibel für dein Frontend:
+    const mapped = products.map((p: any) => ({
+      id: p.id,
+      name: p.variety?.name ?? p.name ?? "",
+      cookingType: p.variety?.cookingType ?? null,
+      packagingType: p.packaging?.name ?? null,
+      productNumber: p.productNumber ?? null,
+    }));
+
+    res.json(mapped);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Fehler beim Laden der Produkte" });
+  }
 });
 /**
  * KUNDEN
