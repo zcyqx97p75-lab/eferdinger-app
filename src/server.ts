@@ -551,7 +551,11 @@ app.get("/api/packaging-runs", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 4000;
+const PORT: number = Number(process.env.PORT) || 4000;
+
+app.listen(PORT, () => {
+  console.log(`Server läuft auf http://localhost:${PORT}`);
+});
 
 ensureOrganisatorUser()
   .catch((err) => {

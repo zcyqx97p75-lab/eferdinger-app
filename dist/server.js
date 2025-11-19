@@ -9,26 +9,36 @@ const cors_1 = __importDefault(require("cors"));
 const client_1 = require("@prisma/client");
 const app = (0, express_1.default)();
 const prisma = new client_1.PrismaClient();
-async function applyFarmerStockChange(farmerId, productId, changeKg, // wir arbeiten in kg
-reason, refDeliveryId) {
-    // 1) Bewegung protokollieren
-    await prisma.farmerStockMovement.create({
-        data: {
-            farmerId,
-            productId,
-            changeTons: changeKg, // Feldname bleibt so, Inhalt ist kg
-            reason,
-            refDeliveryId: refDeliveryId ?? null,
+// === Organisator-User beim Start sicherstellen ===
+async function ensureOrganisatorUser() {
+    const email = "ewald.mayr@gemuese-mayr.at";
+    const password = "12345"; // nur zum Testen!
+    await prisma.user.upsert({
+        where: { email },
+        update: {
+            name: "Ewald Mayr",
+            role: "ORGANISATOR", // exakt wie im Prisma-Enum
+            password, // Feldname wie in schema.prisma
+        },
+        create: {
+            email,
+            name: "Ewald Mayr",
+            role: "ORGANISATOR",
+            password,
         },
     });
-    // 2) aktuellen Bestand holen oder anlegen
+    console.log("Organisator-User vorhanden/angelegt:", email);
+}
+// === Hilfsfunktion: Bauernlager verändern (arbeitet in kg) ===
+async function applyFarmerStockChange(farmerId, varietyId, // jetzt Sorte statt Produkt
+changeKg, reason, refDeliveryId) {
+    // alten Eintrag holen (Schlüssel: Bauer + Sorte)
     const existing = await prisma.farmerStock.findUnique({
-        where: { farmerId_productId: { farmerId, productId } },
+        where: { farmerId_varietyId: { farmerId, varietyId } },
     });
     if (existing) {
-        // quantityTons kommt als Decimal/String → sicher in number umwandeln
         const current = Number(existing.quantityTons) || 0;
-        const updated = current + changeKg; // echte Zahlen-Addition
+        const updated = current + changeKg;
         await prisma.farmerStock.update({
             where: { id: existing.id },
             data: {
@@ -37,21 +47,35 @@ reason, refDeliveryId) {
         });
     }
     else {
-        // erster Eintrag: einfach den übergebenen Wert speichern
         await prisma.farmerStock.create({
             data: {
                 farmerId,
-                productId,
+                varietyId,
                 quantityTons: changeKg,
             },
         });
     }
+    // Bewegungsprotokoll
+    await prisma.farmerStockMovement.create({
+        data: {
+            farmerId,
+            varietyId,
+            changeTons: changeKg,
+            reason,
+            refDeliveryId: refDeliveryId ?? null,
+        },
+    });
 }
+app.use((0, cors_1.default)());
+app.use(express_1.default.json());
 app.use((0, cors_1.default)());
 app.use(express_1.default.json());
 // Health Check
 app.get("/api/health", (_req, res) => {
     res.json({ status: "ok" });
+});
+app.get("/", (_req, res) => {
+    res.send("Backend OK");
 });
 /**
  * BAUERN
@@ -61,53 +85,141 @@ app.get("/api/farmers", async (_req, res) => {
     res.json(farmers);
 });
 app.post("/api/farmers", async (req, res) => {
-  const { name, fullAddress, ggnNumber, loginEmail, loginPassword } = req.body;
-
-  if (!name) {
-    return res.status(400).json({ error: "Name ist erforderlich" });
-  }
-
-  try {
-    const farmer = await prisma.farmer.create({
-      data: {
-        name,
-        fullAddress,
-        ggnNumber,
-        loginEmail,
-        loginPassword,
-      },
-    });
-
-    res.status(201).json(farmer);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Fehler beim Anlegen des Bauern" });
-  }
+    const { name, street, postalCode, city, ggn, // kommt vom Formular, wird aktuell NICHT in der DB gespeichert
+    loginEmail, loginPassword, } = req.body;
+    if (!name) {
+        return res.status(400).json({ error: "Name ist erforderlich" });
+    }
+    try {
+        // 1) Adresse anlegen (falls angegeben)
+        let addressId = null;
+        if (street || postalCode || city) {
+            const address = await prisma.address.create({
+                data: {
+                    street: street ?? "",
+                    postalCode: postalCode ?? "",
+                    city: city ?? "",
+                },
+            });
+            addressId = address.id;
+        }
+        // 2) Farmer anlegen – nur Felder verwenden, die es im Prisma-Model wirklich gibt
+        const farmer = await prisma.farmer.create({
+            data: {
+                name,
+                // ggn im Moment NICHT im Schema → wird ignoriert
+                email: loginEmail ?? null, // optional
+                passwordHash: loginPassword ?? null, // wir speichern das Passwort hier im Klartext
+                addressId,
+            },
+        });
+        // 3) Wenn Login-Daten vorhanden sind, passenden User anlegen/verknüpfen
+        if (loginEmail && loginPassword) {
+            await prisma.user.upsert({
+                where: { email: loginEmail },
+                update: {
+                    name: farmer.name,
+                    password: loginPassword,
+                    role: "FARMER",
+                    farmerId: farmer.id,
+                },
+                create: {
+                    email: loginEmail,
+                    password: loginPassword,
+                    name: farmer.name,
+                    role: "FARMER",
+                    farmerId: farmer.id,
+                },
+            });
+        }
+        res.status(201).json(farmer);
+    }
+    catch (err) {
+        console.error(err);
+        res
+            .status(500)
+            .json({ error: "Fehler beim Anlegen des Bauern / Users" });
+    }
 });
-/**
- * PRODUKTE
- */
+// === PRODUKTE ===
 app.get("/api/products", async (_req, res) => {
-  try {
     const products = await prisma.product.findMany({
-      include: { variety: true, packaging: true },
-      orderBy: { id: "asc" },
+        orderBy: [{ name: "asc" }],
     });
-
-    // Legacy-kompatibel für dein Frontend:
-    const mapped = products.map((p: any) => ({
-      id: p.id,
-      name: p.variety?.name ?? p.name ?? "",
-      cookingType: p.variety?.cookingType ?? null,
-      packagingType: p.packaging?.name ?? null,
-      productNumber: p.productNumber ?? null,
-    }));
-
-    res.json(mapped);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Fehler beim Laden der Produkte" });
-  }
+    res.json(products);
+});
+app.post("/api/products", async (req, res) => {
+    const { name, cookingType, // "FESTKOCHEND" | "VORWIEGEND_FESTKOCHEND" | "MEHLIG"
+    unitKg, // z.B. 2
+    unitsPerColli, // z.B. 9
+    collisPerPallet, // z.B. 32
+    packagingType, // z.B. "VERTPACK" (Enum!)
+    productNumber, // optional
+     } = req.body;
+    if (!name || !cookingType || !unitKg) {
+        return res
+            .status(400)
+            .json({ error: "name, cookingType, unitKg sind Pflichtfelder" });
+    }
+    try {
+        const product = await prisma.product.create({
+            data: {
+                name,
+                cookingType,
+                unitKg: Number(unitKg),
+                unitsPerColli: unitsPerColli ? Number(unitsPerColli) : null,
+                collisPerPallet: collisPerPallet ? Number(collisPerPallet) : null,
+                packagingType: packagingType || null,
+                productNumber: productNumber || null,
+            },
+        });
+        res.status(201).json(product);
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({
+            error: "Fehler beim Anlegen des Produkts",
+            detail: String(err.message || err),
+        });
+    }
+});
+// === SORTEN (Varieties) ===
+app.get("/api/varieties", async (_req, res) => {
+    try {
+        const varieties = await prisma.variety.findMany({
+            orderBy: [{ name: "asc" }],
+        });
+        res.json(varieties);
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Fehler beim Laden der Sorten" });
+    }
+});
+app.post("/api/varieties", async (req, res) => {
+    const { name, cookingType, quality } = req.body;
+    if (!name || !cookingType || !quality) {
+        return res
+            .status(400)
+            .json({ error: "name, cookingType, quality sind Pflichtfelder" });
+    }
+    try {
+        const variety = await prisma.variety.create({
+            data: {
+                name,
+                cookingType, // enum CookingType
+                quality, // enum VarietyQuality (Q1, Q2, UEBERGROESSE)
+            },
+        });
+        res.status(201).json(variety);
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({
+            error: "Fehler beim Anlegen der Sorte",
+            detail: String(err.message || err),
+        });
+    }
 });
 /**
  * KUNDEN
@@ -126,34 +238,39 @@ app.post("/api/customers", async (req, res) => {
     });
     res.status(201).json(customer);
 });
-/**
- * LIEFERUNGEN
- */
+// === LIEFERUNGEN AN PACKER (EG) ===
 app.post("/api/deliveries", async (req, res) => {
-    const { date, farmerId, productId, grossTons, wasteKg, netTons } = req.body;
-    if (!date || !farmerId || !productId || grossTons == null || netTons == null) {
-        return res.status(400).json({ error: "Pflichtfelder fehlen" });
-    }
     try {
+        const { farmerId, productId, date, grossTons, wasteKg } = req.body;
+        if (!farmerId || !productId || !date || !grossTons) {
+            return res
+                .status(400)
+                .json({ error: "farmerId, productId, date und grossTons sind Pflichtfelder" });
+        }
+        const waste = Number(wasteKg ?? 0);
+        const gross = Number(grossTons);
         const delivery = await prisma.delivery.create({
             data: {
+                farmerId: Number(farmerId),
+                productId: Number(productId),
                 date: new Date(date),
-                farmerId,
-                productId,
-                grossTons,
-                wasteKg: wasteKg ?? 0,
-                netTons,
+                grossTons: gross,
+                wasteKg: waste,
+                netTons: gross - waste / 1000,
             },
         });
-        // Bauer-Lager automatisch reduzieren (hier mit Bruttomenge)
-        await applyFarmerStockChange(farmerId, productId, -Number(grossTons), "DELIVERY_TO_PACKER", delivery.id);
+        // Lagerbuchung ins Bauernlager ist vorerst deaktiviert,
+        // bis wir vollständig auf Sorten-Lager umgestellt haben.
         res.status(201).json(delivery);
     }
     catch (err) {
         console.error(err);
-        res.status(500).json({ error: "Fehler bei Lieferung / Lagerbuchung" });
+        res
+            .status(500)
+            .json({ error: "Fehler bei Lieferung / Lagerbuchung" });
     }
 });
+// === BAUERNLAGER (Sorten-basiert) ===
 // Lagerstand beim Bauern (für ORGANISATOR: alle, für Bauer: gefiltert nach farmerId)
 app.get("/api/farmer-stock", async (req, res) => {
     const farmerIdRaw = req.query.farmerId;
@@ -164,11 +281,11 @@ app.get("/api/farmer-stock", async (req, res) => {
             where: farmerId ? { farmerId } : undefined,
             include: {
                 farmer: true,
-                product: true,
+                variety: true, // statt product
             },
             orderBy: [
                 { farmerId: "asc" },
-                { productId: "asc" },
+                { varietyId: "asc" },
             ],
         });
         res.json(stocks);
@@ -181,23 +298,25 @@ app.get("/api/farmer-stock", async (req, res) => {
             .json({ error: "Fehler beim Laden der Bauern-Lagerstände", detail: message });
     }
 });
-// Inventur beim Bauern: absoluter Lagerstand je Bauer+Produkt setzen
+// Inventur beim Bauern: absoluter Lagerstand je Bauer+Sorte setzen (in kg)
 app.post("/api/farmer-stock/inventory", async (req, res) => {
-    const { farmerId, productId, newQuantityTons } = req.body;
-    if (!farmerId || !productId || newQuantityTons == null) {
-        return res.status(400).json({ error: "farmerId, productId und newQuantityTons sind erforderlich" });
+    const { farmerId, varietyId, newQuantityTons } = req.body; // newQuantityTons = kg
+    if (!farmerId || !varietyId || newQuantityTons == null) {
+        return res.status(400).json({
+            error: "farmerId, varietyId und newQuantityTons sind erforderlich",
+        });
     }
     try {
         const existing = await prisma.farmerStock.findUnique({
-            where: { farmerId_productId: { farmerId, productId } },
+            where: { farmerId_varietyId: { farmerId, varietyId } },
         });
         const current = existing ? Number(existing.quantityTons) : 0;
-        const target = Number(newQuantityTons);
+        const target = Number(newQuantityTons); // wir verwenden kg
         const diff = target - current;
-        await applyFarmerStockChange(farmerId, productId, diff, "INVENTORY");
+        await applyFarmerStockChange(farmerId, varietyId, diff, "INVENTORY");
         const updated = await prisma.farmerStock.findUnique({
-            where: { farmerId_productId: { farmerId, productId } },
-            include: { farmer: true, product: true },
+            where: { farmerId_varietyId: { farmerId, varietyId } },
+            include: { farmer: true, variety: true },
         });
         res.status(200).json(updated);
     }
@@ -206,17 +325,19 @@ app.post("/api/farmer-stock/inventory", async (req, res) => {
         res.status(500).json({ error: "Fehler bei Inventur" });
     }
 });
-// Verkauf ab Hof: Lager reduzieren
+// Verkauf ab Hof: Lager reduzieren (nach Sorte)
 app.post("/api/farmer-stock/direct-sale", async (req, res) => {
-    const { farmerId, productId, quantityTons } = req.body;
-    if (!farmerId || !productId || quantityTons == null) {
-        return res.status(400).json({ error: "farmerId, productId und quantityTons sind erforderlich" });
+    const { farmerId, varietyId, quantityTons } = req.body; // quantityTons = kg
+    if (!farmerId || !varietyId || quantityTons == null) {
+        return res.status(400).json({
+            error: "farmerId, varietyId und quantityTons sind erforderlich",
+        });
     }
     try {
-        await applyFarmerStockChange(farmerId, productId, -Number(quantityTons), "DIRECT_SALE");
+        await applyFarmerStockChange(farmerId, varietyId, -Number(quantityTons), "DIRECT_SALE");
         const updated = await prisma.farmerStock.findUnique({
-            where: { farmerId_productId: { farmerId, productId } },
-            include: { farmer: true, product: true },
+            where: { farmerId_varietyId: { farmerId, varietyId } },
+            include: { farmer: true, variety: true },
         });
         res.status(200).json(updated);
     }
@@ -352,9 +473,18 @@ app.get("/api/packaging-runs", async (req, res) => {
         res.status(500).json({ error: "Fehler beim Laden der Verpackungsvorgänge" });
     }
 });
-const PORT = process.env.PORT || 4000;
+const PORT = Number(process.env.PORT) || 4000;
 app.listen(PORT, () => {
     console.log(`Server läuft auf http://localhost:${PORT}`);
+});
+ensureOrganisatorUser()
+    .catch((err) => {
+    console.error("Fehler beim Anlegen des Organisators:", err);
+})
+    .finally(() => {
+    app.listen(PORT, "0.0.0.0", () => {
+        console.log(`Server läuft auf Port ${PORT}`);
+    });
 });
 // sehr einfacher Login (nur für internen Gebrauch, später mit Passwort-Hashing absichern)
 app.post("/api/auth/login", async (req, res) => {
