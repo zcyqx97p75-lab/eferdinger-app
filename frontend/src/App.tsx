@@ -7,6 +7,8 @@ console.log("API_URL FRONTEND =", API_URL);
 // 1) ENUM-ähnliche Typen
 type CookingType = "FESTKOCHEND" | "VORWIEGEND_FESTKOCHEND" | "MEHLIG";
 type VarietyQuality = "Q1" | "Q2" | "UEBERGROESSE";
+type CookingFilter = CookingType | "alle";
+type QualityFilter = VarietyQuality | "alle";
 
 // Adresse eines Bauern
 type FarmerAddress = {
@@ -211,26 +213,25 @@ export default function App() {
   const [customerName, setCustomerName] = useState("");
   const [customerRegion, setCustomerRegion] = useState("");
 
-   // Bauernlager-Filter
-   const [stockProductFilterId, setStockProductFilterId] = useState<"alle" | number>("alle");
-   const [stockFilterFarmerId, setStockFilterFarmerId] = useState<number | "">(
-    ""
-  );
-  const [stockCookingFilter, setStockCookingFilter] = useState<string>("alle");
-  const [stockVarietyFilterId, setStockVarietyFilterId] = useState<
-    number | "alle"
-  >("alle");
-    const [stockQualityFilter, setStockQualityFilter] = useState<string>("alle");
+ // Bauernlager-Filter
+const [stockProductFilterId, setStockProductFilterId] =
+  useState<"alle" | number>("alle");
+const [stockFilterFarmerId, setStockFilterFarmerId] =
+  useState<number | "">("");
+const [stockCookingFilter, setStockCookingFilter] =
+  useState<CookingFilter>("alle");
+const [stockQualityFilter, setStockQualityFilter] =
+  useState<QualityFilter>("alle");
 
-  // Bauernlager-Formulare (nur Bauer) – jetzt auf Sorte
-  const [invVarietyId, setInvVarietyId] = useState<number | "">("");
-  const [invQuantityKg, setInvQuantityKg] = useState("");
+// Bauernlager-Formulare (nur Bauer) – jetzt auf Sorte
+const [invVarietyId, setInvVarietyId] = useState<number | "">("");
+const [invQuantityKg, setInvQuantityKg] = useState("");
 
-  const [privVarietyId, setPrivVarietyId] = useState<number | "">("");
-  const [privQuantityKg, setPrivQuantityKg] = useState("");
+const [privVarietyId, setPrivVarietyId] = useState<number | "">("");
+const [privQuantityKg, setPrivQuantityKg] = useState("");
 
-  const [egVarietyId, setEgVarietyId] = useState<number | "">("");
-  const [egQuantityKg, setEgQuantityKg] = useState("");
+const [egVarietyId, setEgVarietyId] = useState<number | "">("");
+const [egQuantityKg, setEgQuantityKg] = useState("");
 
 
   // === Nachrichten-Helfer ===
@@ -718,33 +719,43 @@ function renderFarmerStockTab() {
 
             {/* Kocheigenschaft */}
             <div>
-              <label>Kocheigenschaft: </label>
-              <select
-                value={stockCookingFilter}
-                onChange={(e) => setStockCookingFilter(e.target.value)}
-              >
-                <option value="alle">alle</option>
-                <option value="FESTKOCHEND">festkochend</option>
-                <option value="VORWIEGEND_FESTKOCHEND">
-                  vorwiegend festkochend
-                </option>
-                <option value="MEHLIG">mehlig</option>
-              </select>
-            </div>
+  <label>Kocheigenschaft: </label>
+  <select
+    value={stockCookingFilter}
+    onChange={(e) =>
+      setStockCookingFilter(
+        e.target.value === "alle"
+          ? "alle"
+          : (e.target.value as CookingType)
+      )
+    }
+  >
+    <option value="alle">alle</option>
+    <option value="FESTKOCHEND">festkochend</option>
+    <option value="VORWIEGEND_FESTKOCHEND">vorwiegend festkochend</option>
+    <option value="MEHLIG">mehlig</option>
+  </select>
+</div>
 
             {/* Qualität */}
             <div>
-              <label>Qualität / Sortierung: </label>
-              <select
-                value={stockQualityFilter}
-                onChange={(e) => setStockQualityFilter(e.target.value)}
-              >
-                <option value="alle">alle</option>
-                <option value="Q1">1. Qualität</option>
-                <option value="Q2">2. Qualität</option>
-                <option value="UEBERGROESSE">Übergrößen</option>
-              </select>
-            </div>
+  <label>Qualität / Sortierung: </label>
+  <select
+    value={stockQualityFilter}
+    onChange={(e) =>
+      setStockQualityFilter(
+        e.target.value === "alle"
+          ? "alle"
+          : (e.target.value as VarietyQuality)
+      )
+    }
+  >
+    <option value="alle">alle</option>
+    <option value="Q1">1. Qualität</option>
+    <option value="Q2">2. Qualität</option>
+    <option value="UEBERGROESSE">Übergrößen</option>
+  </select>
+</div>
 
             {/* Sorte */}
             <div>
@@ -1034,18 +1045,19 @@ function renderFarmerStockTab() {
               required
               placeholder="z.B. Eferdinger Landl Erdäpfel festkochend 2 kg"
             />
-
-            <label>Kocheigenschaft</label>
-            <select
-              value={productCookingType}
-              onChange={(e) => setProductCookingType(e.target.value)}
-            >
-              <option value="FESTKOCHEND">festkochend</option>
-              <option value="VORWIEGEND_FESTKOCHEND">
-                vorwiegend festkochend
-              </option>
-              <option value="MEHLIG">mehlig</option>
-            </select>
+<label>Kocheigenschaft</label>
+<select
+  value={productCookingType}
+  onChange={(e) =>
+  setProductCookingType(e.target.value as CookingType)
+}
+>
+  <option value="FESTKOCHEND">festkochend</option>
+  <option value="VORWIEGEND_FESTKOCHEND">
+    vorwiegend festkochend
+  </option>
+  <option value="MEHLIG">mehlig</option>
+</select>
 
             <label>Verpackungstyp</label>
             <select
@@ -1154,11 +1166,11 @@ function renderFarmerStockTab() {
 
             <label>Kocheigenschaft</label>
             <select
-              value={varietyCookingType}
-              onChange={(e) =>
-                setVarietyCookingType(e.target.value as CookingType)
-              }
-            >
+  value={varietyCookingType}
+  onChange={(e) =>
+    setVarietyCookingType(e.target.value as CookingType)
+  }
+>
               <option value="FESTKOCHEND">festkochend</option>
               <option value="VORWIEGEND_FESTKOCHEND">
                 vorwiegend festkochend
