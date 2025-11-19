@@ -8,17 +8,26 @@ console.log("API_URL FRONTEND =", API_URL);
 type CookingType = "FESTKOCHEND" | "VORWIEGEND_FESTKOCHEND" | "MEHLIG";
 type VarietyQuality = "Q1" | "Q2" | "UEBERGROESSE";
 
+// Adresse eines Bauern
+type FarmerAddress = {
+  street?: string | null;
+  postalCode?: string | null;
+  city?: string | null;
+};
+
 // 2) Bauern
 type Farmer = {
   id: number;
   name: string;
+  farmName?: string | null;          // Hofname für Anzeige
+  address?: FarmerAddress | null;    // Straße/PLZ/Ort
   fullAddress?: string | null;
   ggnNumber?: string | null;
   loginEmail?: string | null;
   loginPassword?: string | null;
 };
 
-// 3) Sorten (NEU)
+// 3) Sorten
 interface Variety {
   id: number;
   name: string;
@@ -33,6 +42,9 @@ type Product = {
   cookingType: CookingType;
   packagingType: string;
   productNumber?: string | null;
+  unitKg?: number | null;            // Packungsgröße
+  unitsPerColli?: number | null;     // Einheiten je Colli
+  collisPerPallet?: number | null;   // Colli je Palette
 };
 
 // 5) Kunden
@@ -1156,9 +1168,11 @@ function renderFarmerStockTab() {
 
             <label>Qualität / Sortierung</label>
             <select
-              value={varietyQuality}
-              onChange={(e) => setVarietyQuality(e.target.value)}
-            >
+  value={varietyQuality}
+  onChange={(e) =>
+    setVarietyQuality(e.target.value as VarietyQuality)
+  }
+>
               <option value="Q1">1. Qualität</option>
               <option value="Q2">2. Qualität</option>
               <option value="UEBERGROESSE">Übergrößen</option>
