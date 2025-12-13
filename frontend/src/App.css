@@ -3,8 +3,8 @@
 .app-root {
   padding: 1rem;
   font-family: system-ui, sans-serif;
-  color: #e5e7eb;
-  background: #111827;
+  color: var(--color-text-primary, #f8fafc);
+  background: var(--color-bg-base, #0f172a);
   min-height: 100vh;
 }
 
@@ -15,29 +15,268 @@
 }
 
 .app-title {
-  font-size: 1.8rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  color: var(--color-text-primary, #f8fafc);
+}
+
+/* === Karten / Boxen === */
+
+.card,
+.content-card {
+  background: var(--color-bg-card, #1e293b);
+  border: 1px solid var(--color-border, #475569);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+}
+
+.content-card h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  color: var(--color-text-primary, #f8fafc);
+}
+
+/* === ActionCard - Wiederverwendbare Funktions-Karte === */
+
+.action-card {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%);
+  border: 1px solid var(--color-border, #475569);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.3),
+    0 2px 4px -2px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.action-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-bottom: 0.5rem;
+}
+
+.action-card-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.action-card-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #f8fafc);
+  margin: 0;
+}
+
+.action-card-description {
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary, #cbd5e1);
+  margin: 0 0 1rem 0;
+  line-height: 1.5;
+}
+
+.action-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Formular-Elemente innerhalb ActionCard */
+.action-card label {
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-text-secondary, #e2e8f0);
   margin-bottom: 0.25rem;
 }
+
+.action-card select,
+.action-card input[type="text"],
+.action-card input[type="date"],
+.action-card input[type="number"] {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  background: rgba(51, 65, 85, 0.8);
+  border: 1px solid var(--color-border, #475569);
+  border-radius: 0.5rem;
+  color: var(--color-text-primary, #f8fafc);
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.action-card select:focus,
+.action-card input:focus {
+  outline: none;
+  border-color: var(--color-primary, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.action-card .number-input {
+  background: rgba(51, 65, 85, 0.8);
+  border: 1px solid var(--color-border, #475569);
+}
+
+/* Primärer Action-Button in der Karte */
+.action-card .btn-action-primary {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  margin-top: 0.5rem;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  border: none;
+  border-radius: 0.75rem;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+}
+
+.action-card .btn-action-primary:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  box-shadow: 0 4px 8px rgba(37, 99, 235, 0.4);
+  transform: translateY(-1px);
+}
+
+.action-card .btn-action-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.3);
+}
+
+/* Responsive Anpassungen */
+@media (max-width: 480px) {
+  .action-card {
+    padding: 1rem;
+    border-radius: 0.75rem;
+  }
+  
+  .action-card-title {
+    font-size: 1.125rem;
+  }
+  
+  .action-card-description {
+    font-size: 0.875rem;
+  }
+  
+  .action-card select,
+  .action-card input {
+    padding: 0.75rem;
+  }
+}
+
+.content-card h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem 0;
+  color: var(--color-text-primary, #f8fafc);
+}
+
+/* Slide-Farben für Packstation-Tabs */
+.slide-lager {
+  border: 2px solid #10b981;
+}
+
+.slide-title-lager {
+  color: #10b981 !important;
+}
+
+.slide-verpackung {
+  border: 2px solid #3b82f6;
+}
+
+.slide-title-verpackung {
+  color: #3b82f6 !important;
+}
+
+.slide-abfall {
+  border: 2px solid #f59e0b;
+}
+
+.slide-title-abfall {
+  color: #f59e0b !important;
+}
+
+/* Warnbox (z.B. "Lager auf 0 setzen") */
+.warning-card {
+  border: 2px solid #ef4444;
+}
+
+.warning-card .warning-title {
+  color: #ef4444 !important;
+}
+
+.warning-card .warning-text {
+  font-size: 0.9375rem;
+  margin-bottom: 1rem;
+  color: #fca5a5;
+}
+
+@media (max-width: 480px) {
+  .content-card {
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+  }
+  
+  .content-card h2 {
+    font-size: 1.125rem;
+  }
+}
+
+.card h2,
+section h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #f8fafc);
+  margin: 0 0 1rem 0;
+}
+
+.card h3,
+section h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #f8fafc);
+  margin: 0 0 0.75rem 0;
+}
+
+/* === Grid Layouts === */
 
 .farmer-stock-grid {
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 1rem;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 768px) {
   .farmer-stock-grid {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
 
-  .farmer-stock-grid > section {
-    margin-bottom: 1rem;
+  .farmer-stock-grid > section,
+  .farmer-stock-grid > .content-card,
+  .farmer-stock-grid > div {
+    margin-bottom: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 }
+
+/* === Header & Titel === */
 
 @media (max-width: 600px) {
   .app-title {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
     line-height: 1.2;
     margin-bottom: 0.5rem;
   }
@@ -46,6 +285,24 @@
     flex-wrap: wrap;
     gap: 0.5rem;
   }
+
+  .main-content header {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+
+  .main-content header > div {
+    width: 100%;
+  }
+
+  .main-content header input {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .main-content h1 {
+    font-size: 1.5rem;
+  }
 }
 
 /* === Login-Bereich === */
@@ -53,7 +310,7 @@
 .login-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.75rem;
   align-items: center;
   margin-bottom: 0.75rem;
 }
@@ -61,31 +318,37 @@
 .login-form {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.75rem;
   align-items: center;
 }
 
 .login-form input {
-  font-size: 0.95rem;
-  padding: 0.3rem 0.4rem;
-  border-radius: 0.25rem;
-  border: none;
+  font-size: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border, #475569);
+  background: var(--color-bg-input, #334155);
+  color: var(--color-text-primary, #f8fafc);
   width: 100%;
-  max-width: 260px;
+  max-width: 280px;
   box-sizing: border-box;
+  min-height: 2.75rem;
 }
 
 .login-form button {
-  padding: 0.3rem 0.8rem;
-  background: #374151;
+  padding: 0.75rem 1.25rem;
+  background: var(--color-primary, #2563eb);
   color: white;
   border: none;
-  border-radius: 999px;
+  border-radius: 0.5rem;
   cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  min-height: 2.75rem;
 }
 
 .login-form button:hover {
-  background: #4b5563;
+  background: var(--color-primary-hover, #1d4ed8);
 }
 
 /* === Tabs === */
@@ -94,79 +357,481 @@
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  margin-bottom: 1rem;
 }
 
 .tab-button {
-  padding: 0.4rem 0.8rem;
-  border-radius: 999px;
-  border: none;
+  padding: 0.625rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border, #475569);
   cursor: pointer;
-  background: #374151;
-  color: white;
+  background: var(--color-bg-input, #334155);
+  color: var(--color-text-primary, #f8fafc);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  min-height: 2.5rem;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.tab-button:hover {
+  background: var(--color-border, #475569);
 }
 
 .tab-button--active {
-  background: #16a34a;
+  background: var(--color-success, #16a34a);
+  border-color: var(--color-success, #16a34a);
+  color: white;
 }
 
+/* === Nachrichten === */
+
 .message-bar {
-  margin-top: 0.5rem;
-  padding: 0.4rem 0.8rem;
-  background: #047857;
-  border-radius: 0.375rem;
-  font-size: 0.9rem;
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-success, #16a34a);
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  color: white;
+  font-weight: 500;
 }
 
 .info-text {
   margin-top: 1rem;
-  font-size: 0.9rem;
-  opacity: 0.9;
+  font-size: 1rem;
+  color: var(--color-text-secondary, #e2e8f0);
 }
+
+/* === Grundlegende HTML-Resets === */
 
 html,
 body,
 #root {
   margin: 0;
   padding: 0;
-  height: 100%;
+  width: 100%;
+  min-height: 100%;
+  background-color: var(--color-bg-base, #0f172a);
 }
 
-/* Rahmen für die ganze App */
-.app-root {
-  max-width: 1200px;   /* Seite wird nicht breiter als 1200px */
-  margin: 0 auto;      /* zentriert */
-  padding: 1rem;       /* etwas Abstand zum Rand */
+/* === Einheitliches App-Layout für alle Rollen === */
+
+.app-layout {
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--color-bg-base, #0f172a);
+  overflow-x: hidden;
+}
+
+.app-container {
+  width: 100%;
+  max-width: 768px;
+  margin: 0 auto;
+  padding: 1rem 1rem;
   box-sizing: border-box;
 }
 
-/* Wenn dir alles zu groß wirkt: */
-body {
-  font-size: 14px;   /* optional: etwas kleinere Schrift */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border, #475569);
 }
 
-/* Filterzeile im Bauernlager (Organisator) */
+.app-nav {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.app-main {
+  width: 100%;
+}
+
+/* Responsive Padding */
+@media (min-width: 640px) {
+  .app-container {
+    padding: 1.25rem 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-container {
+    padding: 0.75rem;
+  }
+  
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  
+  .app-header > div {
+    width: 100%;
+  }
+  
+  .app-nav {
+    gap: 0.375rem;
+  }
+  
+  .app-nav button {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* Legacy-Klassen für Kompatibilität */
+.main-content-wrapper {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  background-color: var(--color-bg-base, #0f172a);
+  min-height: 100vh;
+}
+
+.main-content {
+  width: 100%;
+  max-width: 768px;
+  margin: 0 auto;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.app-root {
+  width: 100%;
+  max-width: 768px;
+  margin: 0 auto;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+/* === Verhindern von horizontalem Overflow === */
+
+.app-container table,
+.main-content table {
+  width: 100%;
+  max-width: 100%;
+  table-layout: auto;
+  overflow-x: auto;
+  display: block;
+}
+
+.app-container input,
+.app-container select,
+.app-container textarea,
+.main-content input,
+.main-content select,
+.main-content textarea {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.app-container img,
+.main-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Wrapper für scrollbare Tabellen */
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 0.5rem;
+}
+
+.table-wrapper table {
+  display: table;
+  min-width: 100%;
+}
+
+/* === Filterzeile === */
+
 .filter-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
+  gap: 1rem;
+  margin-bottom: 1rem;
   align-items: flex-end;
 }
 
 .filter-row > div {
   display: flex;
   flex-direction: column;
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 
 .filter-row label {
-  margin-bottom: 0.15rem;
+  margin-bottom: 0.375rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-text-secondary, #e2e8f0);
 }
 
 .filter-row select {
-  padding: 0.4rem 0.5rem;
-  border-radius: 0.375rem;
-  border: 1px solid #4b5563;
-  background: #111827;
-  color: #e5e7eb;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border, #475569);
+  background: var(--color-bg-input, #334155);
+  color: var(--color-text-primary, #f8fafc);
+  font-size: 1rem;
+  min-height: 2.75rem;
+}
+
+/* === Packstellen-Tab-Navigation (einheitliches Layout) === */
+
+.packstation-carousel {
+  margin-top: 0.5rem;
+}
+
+.packstation-carousel-nav {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.packstation-carousel-nav button {
+  padding: 0.625rem 1rem;
+  font-size: 0.9375rem;
+  border-radius: 9999px;
+  min-height: 2.5rem;
+  transition: all 0.2s ease;
+}
+
+@media (max-width: 480px) {
+  .packstation-carousel-nav {
+    gap: 0.375rem;
+  }
+
+  .packstation-carousel-nav button {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* === Taschenrechner Container === */
+
+.calculator-container {
+  width: 100%;
+  max-width: 350px;
+  margin: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Kleine Displays - Taschenrechner Optimierung */
+@media (max-width: 400px) {
+  .calculator-container {
+    max-width: calc(100vw - 1rem);
+    border-radius: 0.5rem !important;
+  }
+
+  .calculator-container > div {
+    padding: 0.5rem !important;
+  }
+
+  .calc-grid {
+    gap: 0.2rem !important;
+    grid-template-rows: repeat(5, minmax(2.5rem, 1fr)) !important;
+  }
+
+  .calc-grid button {
+    font-size: clamp(1rem, 5vw, 1.3rem) !important;
+    border-radius: 0.375rem !important;
+  }
+
+  .calc-display {
+    font-size: clamp(1.125rem, 5vw, 1.4rem) !important;
+    padding: 0.5rem 0.625rem !important;
+    min-height: 2.25rem !important;
+  }
+
+  .calc-actions {
+    gap: 0.25rem !important;
+    margin-top: 0.5rem !important;
+  }
+
+  .calc-btn-cancel,
+  .calc-btn-confirm {
+    height: 2.5rem !important;
+    font-size: clamp(0.8rem, 3.5vw, 0.9rem) !important;
+    font-weight: 600 !important;
+  }
+}
+
+/* Sehr kleine Displays */
+@media (max-width: 320px) {
+  .calculator-container > div {
+    padding: 0.375rem !important;
+  }
+
+  .calc-grid {
+    gap: 0.15rem !important;
+    grid-template-rows: repeat(5, minmax(2.25rem, 1fr)) !important;
+  }
+
+  .calc-grid button {
+    font-size: clamp(0.9rem, 4.5vw, 1.1rem) !important;
+    border-radius: 0.25rem !important;
+  }
+
+  .calc-display {
+    font-size: clamp(1rem, 4.5vw, 1.2rem) !important;
+    padding: 0.375rem 0.5rem !important;
+    min-height: 2rem !important;
+  }
+
+  .calc-btn-cancel,
+  .calc-btn-confirm {
+    height: 2.25rem !important;
+    font-size: clamp(0.75rem, 3vw, 0.85rem) !important;
+  }
+}
+
+/* === Numerisches Eingabefeld === */
+
+.number-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 1.125rem;
+  height: 3rem;
+  background: var(--color-bg-input, #334155);
+  color: var(--color-text-primary, #f8fafc);
+  border: 1px solid var(--color-border, #475569);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+
+@media (max-width: 600px) {
+  .number-input {
+    font-size: 1rem;
+    height: 2.75rem;
+    padding: 0.625rem 0.75rem;
+  }
+}
+
+/* === Formular-Abstände === */
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-text-secondary, #e2e8f0);
+  margin-bottom: 0.375rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  flex-wrap: wrap;
+}
+
+/* === Utility-Klassen für Buttons === */
+
+.btn-primary {
+  background-color: var(--color-primary, #2563eb) !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-hover, #1d4ed8) !important;
+}
+
+.btn-success {
+  background-color: var(--color-success, #16a34a) !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 600;
+}
+
+.btn-success:hover {
+  background-color: var(--color-success-hover, #15803d) !important;
+}
+
+.btn-danger {
+  background-color: var(--color-danger, #dc2626) !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 600;
+}
+
+.btn-danger:hover {
+  background-color: var(--color-danger-hover, #b91c1c) !important;
+}
+
+/* === Responsive Tabellen === */
+
+@media (max-width: 640px) {
+  table {
+    font-size: 0.875rem;
+  }
+  
+  th, td {
+    padding: 0.5rem 0.375rem;
+  }
+  
+  /* Keine grauen Texte auf dunklem Hintergrund */
+  td {
+    color: var(--color-text-secondary, #e2e8f0);
+  }
+}
+
+/* === Sicherstellen, dass kein weißer Hintergrund durchscheint === */
+
+* {
+  box-sizing: border-box;
+}
+
+div, section, article, aside, header, footer, main, nav {
+  background-color: inherit;
+}
+
+/* === High Contrast für wichtige Elemente === */
+
+strong, b {
+  color: var(--color-text-primary, #f8fafc);
+  font-weight: 600;
+}
+
+/* Keine schwachen Grautöne für Text */
+.text-muted {
+  color: var(--color-text-secondary, #e2e8f0) !important;
+}
+
+/* === Modal Animationen === */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }

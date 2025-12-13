@@ -7,7 +7,10 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "prisma:migrate:deploy": "npx prisma migrate deploy"
+    "prisma:migrate:deploy": "npx prisma migrate deploy",
+    "prisma:migrate:fix": "npx prisma migrate resolve --applied 20251112_variety_product_backrels 2>/dev/null || true",
+    "prisma:migrate:deploy:safe": "npm run prisma:migrate:fix && npm run prisma:migrate:deploy",
+    "setup-network": "bash scripts/setup-network.sh"
   },
   "keywords": [],
   "author": "",
@@ -16,10 +19,15 @@
   "dependencies": {
     "@prisma/client": "^6.19.0",
     "@prisma/config": "^6.19.0",
+    "@types/nodemailer": "^7.0.4",
+    "@types/pdfkit": "^0.17.4",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
+    "csv-parse": "^6.1.0",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
+    "nodemailer": "^7.0.11",
+    "pdfkit": "^0.17.2",
     "prisma": "^6.19.0"
   },
   "devDependencies": {

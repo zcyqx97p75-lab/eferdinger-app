@@ -1,0 +1,72 @@
+port { PrismaClient, CookingType } from "@prisma/client";
+import * as fs from "fs";
+import * as path from "path";
+
+const prisma = new PrismaClient();
+
+// Pfad zur CSV-Datei – HIER ggf. ändern
+const csvPath = path.join(process.cwd(), "planmengen.csv");
+
+async function main() {
+  console.log("Lese Datei:", csvPath);
+
+  if (!fs.existsSync(csvPath)) {
+    console.error("❌ CSV-Datei nicht gefunden!");
+    process.exit(1);
+  }
+
+  const lines = fs
+    .readFileSync(csvPath, "utf-8")
+    .trim()
+    .split("\n")
+    .filter((l) => l.length > 0);
+
+  console.log(`Gefundene Zeilen: ${lines.length}`);
+
+  // erste Zeile = Header
+  const header = lines.shift();
+  console.log("Header:", header);
+
+  for (const line of lines) {
+    const parts = line.split(";");
+
+    if (parts.length < 6) {
+      console.log("Überspringe ungültige Zeile:", line);
+      continue;
+    }
+
+    const year = Number(parts[0]);
+    const week = Number(parts[1]);
+    const weekStart = parts[2]; // yyyy-mm-dd – direkt aus Excel
+    const farmerId = Number(parts[3]);
+    const cookingType = parts[4] as CookingType;
+    const plannedKg = Number(parts[5]);
+
+    if (!year || !weekStart || !farmerId || !cookingType) {
+      console.log("Überspringe unvollständige Zeile:", line);
+      continue;
+    }
+
+    console.log(
+      `Importiere: Jahr ${year}, Farmer ${farmerId}, Kochtyp ${cookingType}, Menge ${plannedKg}`
+    );
+
+    await prisma.deliveryPlan.create({
+      data: {
+        year,
+        week,
+        weekStart,
+        farmerId,
+        cookingType,
+        plannedKg,
+      },
+    });
+  }
+
+  console.log("✅ Import abgeschlossen!");
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

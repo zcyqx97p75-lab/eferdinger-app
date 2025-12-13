@@ -1,18 +1,577 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "darwin", "darwin-arm64"]
 }
 
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL") //
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                 Int          @id @default(autoincrement())
+  email              String       @unique
+  password           String
+  name               String
+  role               UserRole
+  farmerId           Int?
+  vatId              String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  farmer             Farmer?      @relation(fields: [farmerId], references: [id])
+  manualCostsCreated ManualCost[]
+}
+
+model Farmer {
+  id                          Int                        @id @default(autoincrement())
+  name                        String
+  farmName                    String?
+  contactInfo                 String?
+  vatId                       String?
+  isFlatRate                  Boolean                    @default(false) /// Pauschalierter Landwirt gem. §22 UStG
+  flatRateNote                String?
+  addressId                   Int?
+  ggn                         String?
+  email                       String?                    @unique
+  passwordHash                String?
+  deliveryPlans               DeliveryPlan[]
+  address                     Address?                   @relation(fields: [addressId], references: [id])
+  farmerStocks                FarmerStock[]
+  movements                   FarmerStockMovement[]
+  packStationStocks           PackStationStock[]
+  packStationStockMovements   PackStationStockMovement[]
+  packagingRuns               PackagingRun[]
+  users                       User[]
+  saleComplaints              CustomerSaleComplaint[]
+  customerSales               CustomerSale[]
+  accountingDocumentsReceived AccountingDocument[]       @relation("DocRecipientFarmer")
+}
+
+model Address {
+  id            Int            @id @default(autoincrement())
+  street        String?
+  postalCode    String?
+  city          String?
+  country       String?
+  customers     Customer[]
+  farmers       Farmer[]
+  packPlants    PackPlant[]
+  packStations  PackStation[]
+  organizations Organization[]
+}
+
+model Customer {
+  id                          Int                      @id @default(autoincrement())
+  name                        String
+  externalId                  String?
+  region                      String?
+  contactInfo                 String?
+  email                       String?
+  phone                       String?
+  contactPerson               String?
+  vatId                       String?
+  addressId                   Int?
+  address                     Address?                 @relation(fields: [addressId], references: [id])
+  packPlantStockMovements     PackPlantStockMovement[]
+  productPrices               ProductPrice[]
+  customerSales               CustomerSale[]
+  accountingDocumentsReceived AccountingDocument[]     @relation("DocRecipientCustomer")
+  accountingDocumentLines     AccountingDocumentLine[]
+}
+
+model Product {
+  id                      Int                      @id @default(autoincrement())
+  name                    String
+  cookingType             CookingType
+  productNumber           String?
+  unitKg                  Int
+  unitsPerColli           Int?
+  collisPerPallet         Int?
+  packagingType           PackagingType?
+  packingCostPerUnit      Decimal                  @default(0) @db.Decimal(10, 2) // Abpackkosten pro Einheit
+  taxRateId               Int?
+  taxRate                 TaxRate?                 @relation(fields: [taxRateId], references: [id])
+  packPlantStocks         PackPlantStock[]
+  packPlantStockMovements PackPlantStockMovement[]
+  packagingRuns           PackagingRun[]
+  productPrices           ProductPrice[]
+  customerSales           CustomerSale[]
+  accountingDocumentLines AccountingDocumentLine[]
+}
+
+model Variety {
+  id                        Int                        @id @default(autoincrement())
+  name                      String
+  cookingType               CookingType
+  quality                   VarietyQuality
+  farmerStocks              FarmerStock[]
+  farmerStockMovements      FarmerStockMovement[]
+  packStationStocks         PackStationStock[]
+  packStationStockMovements PackStationStockMovement[]
+  packagingRuns             PackagingRun[]
+  customerSales             CustomerSale[]
+  accountingDocumentLines   AccountingDocumentLine[]
+}
+
+model PackagingRun {
+  id                      Int                      @id @default(autoincrement())
+  date                    DateTime
+  productId               Int
+  quantityUnits           Int
+  reserved                Boolean                  @default(false)
+  wasteKg                 Int
+  packStationId           Int
+  farmerId                Int
+  varietyId               Int
+  productNameSnapshot     String
+  packStationNameSnapshot String
+  farmerNameSnapshot      String
+  varietyNameSnapshot     String
+  rawInputKg              Decimal
+  finishedKg              Decimal
+  createdAt               DateTime                 @default(now())
+  farmer                  Farmer                   @relation(fields: [farmerId], references: [id])
+  packStation             PackStation              @relation(fields: [packStationId], references: [id])
+  product                 Product                  @relation(fields: [productId], references: [id])
+  variety                 Variety                  @relation(fields: [varietyId], references: [id])
+  packPlantStockMovements PackPlantStockMovement[]
+}
+
+/// Verkaufspreise für Produkte pro Kunde
+model ProductPrice {
+  id                   Int       @id @default(autoincrement())
+  customerId           Int
+  productId            Int
+  supplierType         String
+  pricePerUnit         Decimal
+  packingCostPerUnit   Decimal?  @db.Decimal(10, 2) // Abpackkosten pro Einheit (optional, kann auch vom Produkt übernommen werden)
+  validFrom            DateTime
+  validTo              DateTime?
+  createdAt            DateTime  @default(now())
+  customer             Customer  @relation(fields: [customerId], references: [id])
+  product              Product   @relation(fields: [productId], references: [id])
+  customerNameSnapshot String?
+  productNameSnapshot  String?
+
+  @@index([customerId, productId, validFrom])
+  @@map("Price") // Behalte den alten Tabellennamen
+}
+
+model FarmerStock {
+  id                    Int      @id @default(autoincrement())
+  farmerId              Int
+  varietyId             Int
+  quantityTons          Decimal
+  farmerNameSnapshot    String
+  varietyNameSnapshot   String
+  updatedAt             DateTime @updatedAt
+  farmerAddressSnapshot String?
+  farmerGgnSnapshot     String?
+  farmer                Farmer   @relation(fields: [farmerId], references: [id])
+  variety               Variety  @relation(fields: [varietyId], references: [id])
+
+  @@unique([farmerId, varietyId])
+}
+
+model FarmerStockMovement {
+  id                    Int             @id @default(autoincrement())
+  farmerId              Int
+  varietyId             Int
+  changeTons            Decimal
+  reason                String
+  fieldName             String?
+  harvestDate           DateTime?
+  sortierGroesse        SortierGroesse?
+  varietyQuality        VarietyQuality?
+  farmerNameSnapshot    String
+  varietyNameSnapshot   String
+  createdAt             DateTime        @default(now())
+  farmerAddressSnapshot String?
+  farmerGgnSnapshot     String?
+  farmer                Farmer          @relation(fields: [farmerId], references: [id])
+  variety               Variety         @relation(fields: [varietyId], references: [id])
+}
+
+model PackStation {
+  id            Int                        @id @default(autoincrement())
+  name          String
+  vatId         String?
+  addressId     Int?
+  address       Address?                   @relation(fields: [addressId], references: [id])
+  stocks        PackStationStock[]
+  movements     PackStationStockMovement[]
+  packagingRuns PackagingRun[]
+}
+
+model PackStationStock {
+  id                      Int         @id @default(autoincrement())
+  packStationId           Int
+  farmerId                Int
+  varietyId               Int
+  quantityKg              Decimal
+  packStationNameSnapshot String
+  farmerNameSnapshot      String
+  varietyNameSnapshot     String
+  updatedAt               DateTime    @updatedAt
+  farmerAddressSnapshot   String?
+  farmerGgnSnapshot       String?
+  farmer                  Farmer      @relation(fields: [farmerId], references: [id])
+  packStation             PackStation @relation(fields: [packStationId], references: [id])
+  variety                 Variety     @relation(fields: [varietyId], references: [id])
+
+  @@unique([packStationId, farmerId, varietyId])
+}
+
+model PackStationStockMovement {
+  id                      Int             @id @default(autoincrement())
+  packStationId           Int
+  farmerId                Int
+  varietyId               Int
+  changeKg                Decimal
+  reason                  String
+  comment                 String?
+  sortierGroesse          SortierGroesse?
+  varietyQuality          VarietyQuality?
+  packStationNameSnapshot String
+  farmerNameSnapshot      String
+  varietyNameSnapshot     String
+  createdAt               DateTime        @default(now())
+  farmerAddressSnapshot   String?
+  farmerGgnSnapshot       String?
+  farmer                  Farmer          @relation(fields: [farmerId], references: [id])
+  packStation             PackStation     @relation(fields: [packStationId], references: [id])
+  variety                 Variety         @relation(fields: [varietyId], references: [id])
+
+  /// Retour-Bewegung: Verknüpfung mit Reklamation
+  isRetourMovement        Boolean                  @default(false)
+  customerSaleComplaintId Int?
+  customerSaleComplaint   CustomerSaleComplaint?   @relation(fields: [customerSaleComplaintId], references: [id])
+  accountingDocumentLines AccountingDocumentLine[]
+}
+
+model PackPlant {
+  id                          Int                      @id @default(autoincrement())
+  name                        String
+  vatId                       String                   @default("")
+  phone                       String?                  @default("")
+  fax                         String?                  @default("")
+  email                       String?                  @default("")
+  website                     String?                  @default("")
+  legalForm                   String?                  @default("") /// Rechtsform
+  registryNumber              String?                  @default("") /// Firmenbuchnummer
+  registryCourt               String?                  @default("") /// Firmenbuchgericht
+  managingDirectors           String?                  @default("") /// optionale GF
+  iban                        String?                  @default("")
+  bic                         String?                  @default("")
+  bankName                    String?                  @default("")
+  paymentTerms                String?                  @default("")
+  addressId                   Int?
+  address                     Address?                 @relation(fields: [addressId], references: [id])
+  stocks                      PackPlantStock[]
+  movements                   PackPlantStockMovement[]
+  accountingDocumentsReceived AccountingDocument[]     @relation("DocRecipientPackPlant")
+  accountingDocumentsLegacy   AccountingDocument[]     @relation("DocLegacyPackPlant")
+  manualCosts                 ManualCost[]
+}
+
+model Organization {
+  id                        Int                  @id @default(autoincrement())
+  name                      String
+  vatId                     String               @default("")
+  phone                     String?              @default("")
+  fax                       String?              @default("")
+  email                     String?              @default("")
+  website                   String?              @default("")
+  legalForm                 String?              @default("") /// Rechtsform (z.B. GmbH)
+  registryNumber            String?              @default("") /// Firmenbuchnummer
+  registryCourt             String?              @default("") /// Firmenbuchgericht
+  managingDirectors         String?              @default("") /// optionale Geschäftsführer/Vertretung
+  iban                      String?              @default("")
+  bic                       String?              @default("")
+  bankName                  String?              @default("")
+  paymentTerms              String?              @default("") /// z.B. zahlbar binnen 14 Tagen
+  addressId                 Int?
+  address                   Address?             @relation(fields: [addressId], references: [id])
+  accountingDocumentsIssued AccountingDocument[] @relation("DocIssuerOrg")
+}
+
+model PackPlantStock {
+  id                    Int          @id @default(autoincrement())
+  packPlantId           Int
+  productId             Int
+  quantityUnits         Int
+  packPlantNameSnapshot String
+  productNameSnapshot   String
+  updatedAt             DateTime     @updatedAt
+  cookingTypeSnapshot   CookingType?
+  packPlant             PackPlant    @relation(fields: [packPlantId], references: [id])
+  product               Product      @relation(fields: [productId], references: [id])
+
+  @@unique([packPlantId, productId])
+}
+
+model PackPlantStockMovement {
+  id                    Int          @id @default(autoincrement())
+  packPlantId           Int
+  productId             Int
+  changeUnits           Int
+  reason                String
+  comment               String?
+  packPlantNameSnapshot String?
+  productNameSnapshot   String?
+  createdAt             DateTime     @default(now())
+  customerId            Int?
+  customerNameSnapshot  String?
+  pricePerUnitSnapshot  Decimal?
+  totalPriceSnapshot    Decimal?
+  cookingTypeSnapshot   CookingType?
+
+  /// Rückverfolgbarkeit: Verbindung zum Verkauf (bei reason="SALE")
+  customerSaleId Int?
+  customerSale   CustomerSale? @relation(fields: [customerSaleId], references: [id])
+
+  /// Rückverfolgbarkeit: Verbindung zum PackagingRun (bei reason="PACKAGING_IN")
+  packagingRunId Int?
+  packagingRun   PackagingRun? @relation(fields: [packagingRunId], references: [id])
+
+  customer  Customer? @relation(fields: [customerId], references: [id])
+  packPlant PackPlant @relation(fields: [packPlantId], references: [id])
+  product   Product   @relation(fields: [productId], references: [id])
+
+  @@index([customerSaleId])
+  @@index([packagingRunId])
+}
+
+// Snapshots der USt-Summen optional, falls später benötigt
+
+model DeliveryPlan {
+  id                 Int         @id @default(autoincrement())
+  farmerId           Int
+  year               Int
+  week               Int
+  cookingType        CookingType
+  plannedKg          Decimal
+  farmerNameSnapshot String
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  farmer             Farmer      @relation(fields: [farmerId], references: [id])
+
+  @@unique([farmerId, year, week, cookingType])
+}
+
+model CustomerSale {
+  id Int @id @default(autoincrement())
+
+  /// Verkaufsdatum (nur Datum, keine Uhrzeit)
+  date DateTime @db.Date
+
+  customer   Customer @relation(fields: [customerId], references: [id])
+  customerId Int
+  product    Product  @relation(fields: [productId], references: [id])
+  productId  Int
+
+  /// Rückverfolgbarkeit: Bauer und Sorte (optional, für FIFO-Logik)
+  farmerId  Int?
+  farmer    Farmer?  @relation(fields: [farmerId], references: [id])
+  varietyId Int?
+  variety   Variety? @relation(fields: [varietyId], references: [id])
+
+  /// Snapshots zum Zeitpunkt des Verkaufs
+  customerNameSnapshot String
+  productNameSnapshot  String
+  farmerNameSnapshot   String? /// Snapshot des Bauern (falls farmerId null)
+  varietyNameSnapshot  String? /// Snapshot der Sorte (falls varietyId null)
+
+  /// verkaufte Einheiten (z.B. Packungen oder Colli*Einheiten)
+  quantityUnits Int
+
+  /// daraus berechnete kg (optional, aber praktisch für Auswertungen)
+  quantityKg Decimal? @db.Decimal(12, 3)
+
+  /// Netto-Verkaufspreis je Einheit (aus Price-Tabelle ermittelt)
+  unitPrice Decimal @db.Decimal(10, 3)
+
+  /// Gesamtbetrag (unitPrice * quantityUnits)
+  totalAmount Decimal @db.Decimal(12, 2)
+
+  comment String?
+
+  createdAt DateTime @default(now())
+
+  /// Reklamationen zu diesem Verkauf
+  complaints              CustomerSaleComplaint[]
+  accountingDocumentLines AccountingDocumentLine[]
+  packPlantStockMovements PackPlantStockMovement[]
+
+  @@index([date])
+  @@index([customerId, date])
+  @@index([farmerId])
+  @@index([varietyId])
+}
+
+/// Reklamation zu einem Kundenverkauf
+model CustomerSaleComplaint {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Bezug auf den Kundenverkauf
+  customerSaleId Int
+  customerSale   CustomerSale @relation(fields: [customerSaleId], references: [id])
+
+  /// Verursachender Bauer
+  farmerId Int
+  farmer   Farmer @relation(fields: [farmerId], references: [id])
+
+  /// Art der Reklamation
+  complaintType ComplaintType
+
+  /// Betroffene Menge (Einheiten/Kisten)
+  affectedQuantity Int
+
+  /// Bei Prozentabzug: Prozentsatz (z.B. 10.00 für 10%)
+  discountPercent Decimal? @db.Decimal(5, 2)
+
+  /// Snapshots zum Zeitpunkt der Reklamation
+  farmerNameSnapshot         String
+  customerNameSnapshot       String
+  productNameSnapshot        String
+  snapshotUnitPrice          Decimal @db.Decimal(10, 3)
+  snapshotPackingCostPerUnit Decimal @db.Decimal(10, 2)
+
+  /// Berechneter Betrag der Reklamation
+  complaintAmount Decimal @db.Decimal(12, 2)
+
+  /// Optionaler Kommentar
+  comment String?
+
+  /// Retour-Lagerbewegungen (nur bei RETOURWARE)
+  retourMovements         PackStationStockMovement[]
+  accountingDocumentLines AccountingDocumentLine[]
+
+  @@index([customerSaleId])
+  @@index([farmerId])
+}
+
+/// Preise für Rohware-Ankauf nach Qualität (Q1, Q2, Übergrößen)
+model VarietyQualityPrice {
+  id         Int            @id @default(autoincrement())
+  quality    VarietyQuality
+  validFrom  DateTime
+  validTo    DateTime?
+  pricePerKg Decimal        @db.Decimal(10, 4)
+  taxRateId  Int?
+  taxRate    TaxRate?       @relation(fields: [taxRateId], references: [id])
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([quality, validFrom])
+}
+
+/// Generische USt-Sätze (können Produkten oder Qualitätspreisen zugeordnet werden)
+model TaxRate {
+  id                   Int                   @id @default(autoincrement())
+  name                 String
+  ratePercent          Decimal               @db.Decimal(5, 2)
+  description          String?
+  validFrom            DateTime              @default(now())
+  validTo              DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  products             Product[]
+  varietyQualityPrices VarietyQualityPrice[]
+}
+
+/// Rechnungen, Gutschriften, Akonto- und Jahresschlussdokumente
+model AccountingDocument {
+  id                                 Int                      @id @default(autoincrement())
+  documentNumber                     String                   @unique
+  documentType                       DocumentType
+  issueDate                          DateTime                 @default(now())
+  servicePeriodFrom                  DateTime?
+  servicePeriodTo                    DateTime?
+  title                              String?
+  issuerNameSnapshot                 String
+  issuerAddressSnapshot              String?
+  issuerVatIdSnapshot                String?
+  recipientNameSnapshot              String
+  recipientAddressSnapshot           String?
+  recipientVatIdSnapshot             String?
+  recipientLegalFormSnapshot         String?
+  recipientRegistryNumberSnapshot    String?
+  recipientRegistryCourtSnapshot     String?
+  recipientManagingDirectorsSnapshot String?
+  issuerLegalFormSnapshot            String?
+  issuerRegistryNumberSnapshot       String?
+  issuerRegistryCourtSnapshot        String?
+  issuerManagingDirectorsSnapshot    String?
+  issuerIbanSnapshot                 String?
+  issuerBicSnapshot                  String?
+  issuerBankNameSnapshot             String?
+  issuerPaymentTermsSnapshot         String?
+  issuerOrganizationId               Int?
+  issuerOrganization                 Organization?            @relation("DocIssuerOrg", fields: [issuerOrganizationId], references: [id])
+  recipientPackPlantId               Int?
+  recipientPackPlant                 PackPlant?               @relation("DocRecipientPackPlant", fields: [recipientPackPlantId], references: [id])
+  packPlantId                        Int?
+  packPlant                          PackPlant?               @relation("DocLegacyPackPlant", fields: [packPlantId], references: [id])
+  recipientFarmerId                  Int?
+  recipientFarmer                    Farmer?                  @relation("DocRecipientFarmer", fields: [recipientFarmerId], references: [id])
+  recipientCustomerId                Int?
+  recipientCustomer                  Customer?                @relation("DocRecipientCustomer", fields: [recipientCustomerId], references: [id])
+  lines                              AccountingDocumentLine[]
+  createdAt                          DateTime                 @default(now())
+  updatedAt                          DateTime                 @updatedAt
+}
+
+model AccountingDocumentLine {
+  id                         Int                       @id @default(autoincrement())
+  documentId                 Int
+  positionNumber             Int
+  description                String
+  quantity                   Decimal?                  @db.Decimal(12, 3)
+  unit                       String?
+  unitPrice                  Decimal?                  @db.Decimal(12, 4)
+  netAmount                  Decimal                   @db.Decimal(12, 2)
+  vatRatePercent             Decimal                   @db.Decimal(5, 2)
+  vatAmount                  Decimal                   @db.Decimal(12, 2)
+  grossAmount                Decimal                   @db.Decimal(12, 2)
+  customerNameSnapshot       String?
+  productNameSnapshot        String?
+  varietyNameSnapshot        String?
+  packPlantNameSnapshot      String?
+  packStationNameSnapshot    String?
+  customerId                 Int?
+  customer                   Customer?                 @relation(fields: [customerId], references: [id])
+  productId                  Int?
+  product                    Product?                  @relation(fields: [productId], references: [id])
+  varietyId                  Int?
+  variety                    Variety?                  @relation(fields: [varietyId], references: [id])
+  packStationStockMovementId Int?
+  packStationStockMovement   PackStationStockMovement? @relation(fields: [packStationStockMovementId], references: [id])
+  customerSaleId             Int?
+  customerSale               CustomerSale?             @relation(fields: [customerSaleId], references: [id])
+  customerSaleComplaintId    Int?
+  customerSaleComplaint      CustomerSaleComplaint?    @relation(fields: [customerSaleComplaintId], references: [id])
+  createdAt                  DateTime                  @default(now())
+  updatedAt                  DateTime                  @updatedAt
+  document                   AccountingDocument        @relation(fields: [documentId], references: [id])
 }
 
 enum UserRole {
   ORGANISATOR
   FARMER
-  PACKER
+  PACKSTELLE
+  PACKBETRIEB
   EG_ADMIN
+}
+
+enum DocumentType {
+  RECHNUNG
+  GUTSCHRIFT
+  AKONTO
+  JAHRESSCHLUSS
 }
 
 enum CookingType {
@@ -33,250 +592,53 @@ enum PackagingType {
   BIGBAG
 }
 
+enum ComplaintType {
+  RETOURWARE // Physische Rücknahme
+  PROZENTABZUG // Preisnachlass, Ware bleibt draußen
+}
+
 enum VarietyQuality {
-  Q1 // 1. Qualität
-  Q2 // 2. Qualität
-  UEBERGROESSE // Übergrößen
+  Q1
+  Q2
+  UEBERGROESSE
 }
 
-enum OrderStatus {
-  OPEN
-  IN_PROGRESS
-  DONE
+enum SortierGroesse {
+  DRILLINGE
+  SIZE_35_55
+  SIZE_55_65
+  SIZE_65_70
+  UEBERGROESSEN
 }
 
-model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String // gehashtes Passwort
-  name      String
-  role      UserRole
-  farmer    Farmer?  @relation(fields: [farmerId], references: [id])
-  farmerId  Int?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum CostType {
+  MARKETING
+  BUREAUCRACY
+  FIXED_COSTS
+  PACKAGING_MATERIAL
+  REPAIRS
+  OTHER_VARIABLE
 }
 
-model Farmer {
-  id           Int       @id @default(autoincrement())
-  name         String
-
-  // alte Felder, die dein Frontend noch nutzt
-  farmName     String?
-  contactInfo  String?
-
-  // Adresse über Address-Modell (N I C H T löschen, wird von Address und Delivery erwartet)
-  addressId    Int?
-  address      Address?  @relation(fields: [addressId], references: [id])
-
-  // NEU: GGN + Zugangsdaten für den Bauern
-  ggn          String?
-  email        String?   @unique
-  passwordHash String?
-
-  // Relationen – werden von anderen Modellen referenziert (User, Delivery, Lager …)
-  deliveries   Delivery[]
-  farmerStocks FarmerStock[]
-  movements    FarmerStockMovement[]
-  users        User[]
+enum CostValueType {
+  ABSOLUTE // Absoluter Betrag in Euro
+  PERCENTAGE // Prozentual (z.B. % vom Umsatz)
 }
 
-model Address {
-  id         Int      @id @default(autoincrement())
-  street     String?
-  postalCode String?
-  city       String?
-  country    String?
-
-  farmers    Farmer[]
-  customers  Customer[]
-}
-
-model Customer {
-  id          Int     @id @default(autoincrement())
-  name        String
-  externalId  String? // Kundennummer Handel
-  region      String?
-  contactInfo String?
-
-  email         String? // später im Frontend Pflicht
-  phone         String?
-  contactPerson String?
-  vatId         String? // UID-Nummer
-
-  addressId Int?
-  address   Address? @relation(fields: [addressId], references: [id])
-
-  orders           Order[]
-  actions          Action[]
-  prices           Price[]
-  customerProducts CustomerProduct[]
-}
-
-model Product {
-  id              Int            @id @default(autoincrement())
-  name            String
-  cookingType     CookingType
-  productNumber   String?
-  unitKg          Int
-  unitsPerColli   Int?
-  collisPerPallet Int?
-  packagingType   PackagingType?
-
-  customerProducts     CustomerProduct[]
-  deliveries           Delivery[]
-  washingRuns          WashingRun[]
-  inventories          Inventory[]
-  prices               Price[]
-  packagingRuns        PackagingRun[]
-  orders               Order[]
-}
-
-model Variety {
-  id          Int            @id @default(autoincrement())
-  name        String
-  cookingType CookingType
-  quality     VarietyQuality
-
-  farmerStocks         FarmerStock[]
-  farmerStockMovements FarmerStockMovement[]
-}
-
-model CustomerProduct {
-  id         Int      @id @default(autoincrement())
-  customer   Customer @relation(fields: [customerId], references: [id])
-  customerId Int
-  product    Product  @relation(fields: [productId], references: [id])
-  productId  Int
-
-  // nur Produkte, die einer Kundschaft zugeordnet sind, sind dort auswählbar
-  @@unique([customerId, productId])
-}
-
-model Delivery {
-  id             Int                   @id @default(autoincrement())
-  date           DateTime
-  farmer         Farmer                @relation(fields: [farmerId], references: [id])
-  farmerId       Int
-  product        Product               @relation(fields: [productId], references: [id])
-  productId      Int
-  grossTons      Decimal
-  wasteKg        Int
-  netTons        Decimal
-  createdAt      DateTime              @default(now())
-  stockMovements FarmerStockMovement[]
-}
-
-model WashingRun {
-  id        Int      @id @default(autoincrement())
-  date      DateTime
-  product   Product  @relation(fields: [productId], references: [id])
-  productId Int
-  // aus Lager ausgebuchte Menge in t
-  usedTons  Decimal
-  // Ausschuss in kg
-  wasteKg   Int
-
-  createdAt DateTime @default(now())
-}
-
-model Order {
-  id            Int            @id @default(autoincrement())
-  customer      Customer       @relation(fields: [customerId], references: [id])
-  customerId    Int
-  product       Product        @relation(fields: [productId], references: [id])
-  productId     Int
-  orderDate     DateTime // Erfassungsdatum
-  deliveryDate  DateTime // gewünschter Liefertermin
-  orderedQty    Int // bestellte Menge (Packungen / Kisten)
-  reserveQty    Int // Reserve-Menge (Packungen / Kisten)
-  status        OrderStatus    @default(OPEN)
-  packagingRuns PackagingRun[]
-  action        Action?        @relation(fields: [actionId], references: [id])
-  actionId      Int?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-}
-
-model PackagingRun {
-  id            Int      @id @default(autoincrement())
-  date          DateTime
-  product       Product  @relation(fields: [productId], references: [id])
-  productId     Int
-  order         Order?   @relation(fields: [orderId], references: [id])
-  orderId       Int?
-  quantityUnits Int // Anzahl Packungen/Kisten
-  reserved      Boolean  @default(false) // true = Reserveverpackung
-  wasteKg       Int // Ausschuss in kg
-  createdAt     DateTime @default(now())
-}
-
-model Inventory {
-  id                Int      @id @default(autoincrement())
-  product           Product  @relation(fields: [productId], references: [id])
-  productId         Int
-  quantityTons      Decimal // aktueller theoretischer Lagerstand
-  asOf              DateTime // Stichtag des Bestands (für Inventur / Snapshot)
-  isManualInventory Boolean  @default(false) // true = Inventurkorrektur
-}
-
-model Action {
-  id              Int      @id @default(autoincrement())
-  customer        Customer @relation(fields: [customerId], references: [id])
-  customerId      Int
-  name            String
-  startDate       DateTime
-  endDate         DateTime
-  description     String?
-  plannedQtyUnits Int? // prognostizierte Menge (Packungen/Kisten)
-  orders          Order[]
-  createdAt       DateTime @default(now())
-}
-
-model Price {
-  id           Int       @id @default(autoincrement())
-  customer     Customer  @relation(fields: [customerId], references: [id])
-  customerId   Int
-  product      Product   @relation(fields: [productId], references: [id])
-  productId    Int
-  supplierType String // z.B. "VERTRAGSLIEFERANT" oder "FREIE_WARE"
-  pricePerUnit Decimal
-  validFrom    DateTime
-  validTo      DateTime?
-  createdAt    DateTime  @default(now())
-
-  @@index([customerId, productId, validFrom])
-}
-
-model FarmerStock {
-  id           Int      @id @default(autoincrement())
-  farmer       Farmer   @relation(fields: [farmerId], references: [id])
-  farmerId     Int
-
-  variety      Variety  @relation(fields: [varietyId], references: [id])
-  varietyId    Int
-
-  // wir speichern hier kg – der Name quantityTons bleibt aus historischen Gründen
-  quantityTons Decimal
-
-  updatedAt    DateTime @updatedAt
-
-  @@unique([farmerId, varietyId])
-}
-
-model FarmerStockMovement {
-  id            Int       @id @default(autoincrement())
-  farmer        Farmer    @relation(fields: [farmerId], references: [id])
-  farmerId      Int
-
-  variety       Variety   @relation(fields: [varietyId], references: [id])
-  varietyId     Int
-
-  changeTons    Decimal   // hier ebenfalls kg
-  reason        String    // z.B. "INVENTORY", "SALE_PRIVATE", "SALE_EG"
-
-  refDelivery   Delivery? @relation(fields: [refDeliveryId], references: [id])
-  refDeliveryId Int?
-
-  createdAt     DateTime  @default(now())
+model ManualCost {
+  id               Int           @id @default(autoincrement())
+  costType         CostType
+  description      String
+  periodFrom       DateTime
+  periodTo         DateTime
+  packPlantId      Int?
+  packPlant        PackPlant?    @relation(fields: [packPlantId], references: [id])
+  valueType        CostValueType
+  value            Decimal       @db.Decimal(12, 4) // Betrag oder Prozent
+  calculatedAmount Decimal?      @db.Decimal(12, 2) // Berechneter Betrag (bei Prozent)
+  comment          String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  createdById      Int?
+  createdBy        User?         @relation(fields: [createdById], references: [id])
 }

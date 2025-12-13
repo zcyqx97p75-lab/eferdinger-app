@@ -1,0 +1,18 @@
+# Render ignore file
+# Dateien/Ordner, die nicht auf Render deployed werden sollen
+
+node_modules/
+.git/
+.env
+.env.local
+*.log
+dist/
+frontend/dist/
+frontend/node_modules/
+documents/
+statements/
+*.md
+!README.md
+.vscode/
+.idea/
+
