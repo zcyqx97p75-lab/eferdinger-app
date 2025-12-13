@@ -279,6 +279,7 @@ app.put("/api/products/:id", async (req, res) => {
   }
 
   try {
+    const { taxRateId } = req.body;
     const product = await prisma.product.update({
       where: { id: Number(id) },
       data: {
@@ -2597,7 +2598,7 @@ async function getFarmerStatement(
       vatRatePercent: vatRateForFarmer,
       vatAmount: amount * (vatRateForFarmer / 100),
       referenceId: run.id,
-      referenceType: "PackagingRun",
+      referenceType: undefined, // PackagingRun wird nicht als referenceType unterstützt
     });
   }
 
@@ -3381,7 +3382,8 @@ async function generateAccountingDocumentPdf(doc: any): Promise<Buffer> {
           let currentLine = "";
           for (const word of words) {
             const testLine = currentLine ? `${currentLine} ${word}` : word;
-            if (pdf.widthOfString(testLine, { fontSize: 11 }) <= maxW) {
+            pdf.fontSize(11);
+            if (pdf.widthOfString(testLine) <= maxW) {
               currentLine = testLine;
             } else {
               if (currentLine) lines.push(currentLine);
@@ -4173,7 +4175,8 @@ async function createPackPlantSalesInvoice(
       complaint.complaintType === "RETOURWARE"
         ? "Retour/Reklamation"
         : `Preisnachlass ${Number(complaint.discountPercent ?? 0)}%`;
-    const varietyInfo = complaint.varietyNameSnapshot ? `, ${complaint.varietyNameSnapshot}` : "";
+    // varietyNameSnapshot kommt vom CustomerSale, nicht direkt vom Complaint
+    const varietyInfo = (sale as any).varietyNameSnapshot ? `, ${(sale as any).varietyNameSnapshot}` : "";
     const description = `${complaintTypeText} ${complaint.productNameSnapshot}${varietyInfo} an ${complaint.customerNameSnapshot}`;
 
     const vatAmount = Number((netAmount * vatRatePercent) / 100);
@@ -4764,15 +4767,11 @@ app.post("/api/packplant-stock/sale", async (req, res) => {
       // Manuelle Zuordnung (falls vom Frontend übergeben)
       const variety = await prisma.variety.findUnique({
         where: { id: Number(varietyId) },
-        include: { farmer: true },
       });
       if (variety) {
         varietyNameSnapshot = variety.name;
         finalVarietyId = variety.id;
-        if (variety.farmer) {
-          farmerNameSnapshot = variety.farmer.name;
-          finalFarmerId = variety.farmer.id;
-        }
+        // Variety hat keine direkte farmer Relation - muss über PackagingRun gefunden werden
       }
     } else if (farmerId) {
       // Manuelle Zuordnung (falls vom Frontend übergeben)
@@ -6732,11 +6731,12 @@ app.put("/api/packstation/waste/:id", async (req, res) => {
       return res.status(404).json({ error: "Abfallbuchung nicht gefunden" });
     }
 
-    const newChangeKg = changeKg != null ? Number(changeKg) : existingMovement.changeKg;
+    const existingChangeKg = Number(existingMovement.changeKg);
+    const newChangeKg = changeKg != null ? Number(changeKg) : existingChangeKg;
     const newComment = comment !== undefined ? comment : existingMovement.comment;
 
     // Differenz berechnen (Abfall ist negativ)
-    const diff = newChangeKg - existingMovement.changeKg;
+    const diff = newChangeKg - existingChangeKg;
 
     // Lager korrigieren
     if (diff !== 0) {
