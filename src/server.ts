@@ -7733,14 +7733,24 @@ async function ensureTaxRates() {
     await prisma.$connect();
     console.log("✓ Datenbankverbindung erfolgreich");
     
-    await ensureInitialData();
-    await ensureTaxRates();
+    // In Production: Initial Data und Tax Rates nur wenn nötig
+    // (kann beim ersten Start länger dauern)
+    try {
+      await ensureInitialData();
+      await ensureTaxRates();
+    } catch (initError: any) {
+      console.warn("⚠️ Warnung beim Initialisieren der Daten:", initError.message);
+      // Nicht beenden, Server kann trotzdem laufen
+    }
     
     const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
     const HOST = process.env.HOST || "0.0.0.0"; // Höre auf allen Interfaces für Netzwerkzugriff
     app.listen(PORT, HOST, () => {
-      console.log(`Server läuft auf http://localhost:${PORT}`);
-      console.log(`Server erreichbar im Netzwerk über: http://${getLocalIP()}:${PORT}`);
+      console.log(`✅ Server läuft auf http://${HOST}:${PORT}`);
+      console.log(`✅ Health Check verfügbar unter: http://${HOST}:${PORT}/api/health`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`Server erreichbar im Netzwerk über: http://${getLocalIP()}:${PORT}`);
+      }
     });
   } catch (error: any) {
     console.error("❌ Fehler beim Serverstart:", error);
