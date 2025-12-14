@@ -9,4 +9,5 @@ buildCommand = "npm install && npm run build"
 outputDirectory = "dist"
 staticAssetsPath = "dist"
 # NO start command for static sites!
+# NO prisma commands - this is a static frontend!
 
