@@ -1,4 +1,5 @@
 # Railway Frontend Service Configuration
+# This file is in /frontend directory, so Railway should use it when Root Directory is /frontend
 
 [build]
 builder = "NIXPACKS"

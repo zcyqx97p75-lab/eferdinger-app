@@ -1690,7 +1690,7 @@ useEffect(() => {
       return;
     }
 
-    const farmer = farmersWithLogin.find((f) => f.id === selectedFarmerId);
+    const farmer = farmers.find((f: Farmer) => f.id === selectedFarmerId);
 
     setConfirmAction({
       title: "Passwort zurücksetzen?",
@@ -3829,7 +3829,7 @@ const renderStatistikTab = () => {
                               setEditSaleCustomerId(sale.customerId);
                               setEditSaleProductId(sale.productId);
                               setEditSaleColli(colli !== null ? String(colli) : "");
-                              setEditSalePricePerColli(formatAmount(sale.unitPrice).replace(" €", "").replace(NARROW_NO_BREAK_SPACE, ""));
+                              setEditSalePricePerColli(formatAmount(sale.unitPrice).replace(" €", "").replace(/\u202F/g, "").replace(/\s/g, ""));
                               setEditSaleComment(sale.comment ?? "");
                               const formElement = document.getElementById("edit-sale-form");
                               formElement?.scrollIntoView({ behavior: "smooth" });
@@ -3991,7 +3991,7 @@ const renderStatistikTab = () => {
                                 : null;
                               setEditingInventoryId(inv.id);
                               setEditInventoryColli(colli !== null ? String(colli) : "");
-                              setEditInventoryPricePerUnit(inv.pricePerUnitSnapshot ? formatAmount(inv.pricePerUnitSnapshot).replace(" €", "").replace(NARROW_NO_BREAK_SPACE, "") : "");
+                              setEditInventoryPricePerUnit(inv.pricePerUnitSnapshot ? formatAmount(inv.pricePerUnitSnapshot).replace(" €", "").replace(/\u202F/g, "").replace(/\s/g, "") : "");
                               setEditInventoryComment(inv.comment ?? "");
                               const formElement = document.getElementById("edit-inventory-form");
                               formElement?.scrollIntoView({ behavior: "smooth" });
