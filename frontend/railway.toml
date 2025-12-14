@@ -8,4 +8,5 @@ buildCommand = "npm install && npm run build"
 [deploy]
 outputDirectory = "dist"
 staticAssetsPath = "dist"
+# NO start command for static sites!
 

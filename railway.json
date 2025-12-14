@@ -10,6 +10,7 @@
     "restartPolicyMaxRetries": 10,
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 100
-  }
+  },
+  "comment": "This file is for BACKEND only. Frontend should use frontend/railway.toml"
 }
 
