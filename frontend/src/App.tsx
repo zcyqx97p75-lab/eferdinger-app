@@ -1961,9 +1961,21 @@ useEffect(() => {
   }
 
   async function loadProducts() {
-  const res = await fetch(`${API_URL}/products`);
-  const data = await res.json();
-  setProducts(Array.isArray(data) ? data : []);
+    try {
+      console.log("🔄 Lade Produkte von:", `${API_URL}/products`);
+      const res = await fetch(`${API_URL}/products`);
+      if (!res.ok) {
+        console.error("❌ Fehler beim Laden der Produkte:", res.status, res.statusText);
+        return;
+      }
+      const data = await res.json();
+      console.log("✅ Produkte geladen:", data.length, "Produkte");
+      setProducts(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("❌ Fehler in loadProducts:", err);
+      setProducts([]);
+    }
+  }
 }
 
   async function loadOrganizerDeliveries(weeks: number) {
@@ -1973,9 +1985,20 @@ useEffect(() => {
   }
 
   async function loadCustomers() {
-    const res = await fetch(`${API_URL}/customers`);
-    const data = await res.json();
-    setCustomers(data);
+    try {
+      console.log("🔄 Lade Kunden von:", `${API_URL}/customers`);
+      const res = await fetch(`${API_URL}/customers`);
+      if (!res.ok) {
+        console.error("❌ Fehler beim Laden der Kunden:", res.status, res.statusText);
+        return;
+      }
+      const data = await res.json();
+      console.log("✅ Kunden geladen:", data.length, "Kunden");
+      setCustomers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("❌ Fehler in loadCustomers:", err);
+      setCustomers([]);
+    }
   }
 
     async function loadPrices(customerId?: number, productId?: number) {
