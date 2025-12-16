@@ -2112,6 +2112,13 @@ async function loadFarmerPackStatsWrapper(farmerId: number) {
       return;
     }
 
+    console.log("🔍 doInventory aufgerufen:", { 
+      farmerId: currentUser.farmerId, 
+      varietyId, 
+      qtyKg,
+      API_URL 
+    });
+
     try {
       const token = localStorage.getItem("authToken");
       const headers: HeadersInit = {
@@ -2121,14 +2128,30 @@ async function loadFarmerPackStatsWrapper(farmerId: number) {
         headers["Authorization"] = `Bearer ${token}`;
       }
 
+      const requestBody = {
+        farmerId: currentUser.farmerId,
+        varietyId,
+        newQuantityTons: qtyKg,
+      };
+
+      console.log("📤 Sende Request:", {
+        url: `${API_URL}/farmer-stock/inventory`,
+        method: "POST",
+        body: requestBody,
+        headers: { ...headers, Authorization: token ? "Bearer ***" : "none" }
+      });
+
       const res = await fetch(`${API_URL}/farmer-stock/inventory`, {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          farmerId: currentUser.farmerId,
-          varietyId, // Sorte
-          newQuantityTons: qtyKg, // Backend erwartet dieses Feld, Wert in kg
-        }),
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log("📥 Response erhalten:", {
+        status: res.status,
+        statusText: res.statusText,
+        ok: res.ok,
+        headers: Object.fromEntries(res.headers.entries())
       });
 
       if (!res.ok) {
@@ -2140,18 +2163,26 @@ async function loadFarmerPackStatsWrapper(farmerId: number) {
         } catch {
           errorMessage = errorText || errorMessage;
         }
-        console.error("Inventur-Fehler:", res.status, errorMessage);
+        console.error("❌ Inventur-Fehler:", res.status, errorMessage, errorText);
         showMessage(`Fehler bei Inventur: ${errorMessage}`);
         return;
       }
+
+      const responseData = await res.json().catch(() => null);
+      console.log("✅ Inventur erfolgreich:", responseData);
 
       setInvQuantityKg("");
       setInvVarietyId("");
       await loadFarmerStocksWrapper(currentUser.farmerId);
       showMessage("Inventur gespeichert");
     } catch (err) {
-      console.error("Inventur-Fehler:", err);
+      console.error("❌ Inventur-Exception:", err);
       const errorMessage = err instanceof Error ? err.message : "Unbekannter Fehler";
+      console.error("❌ Fehler-Details:", {
+        message: errorMessage,
+        stack: err instanceof Error ? err.stack : undefined,
+        name: err instanceof Error ? err.name : undefined
+      });
       showMessage(`Fehler bei Inventur: ${errorMessage}`);
     }
   }
@@ -2160,11 +2191,20 @@ async function loadFarmerPackStatsWrapper(farmerId: number) {
   function handleInventory(e: React.FormEvent) {
     e.preventDefault();
 
+    console.log("🔍 handleInventory aufgerufen:", {
+      currentUser: currentUser ? { id: currentUser.id, farmerId: currentUser.farmerId } : null,
+      invVarietyId,
+      invQuantityKg,
+      safeVarietiesCount: safeVarieties.length
+    });
+
     if (!currentUser?.farmerId) {
+      console.warn("⚠️ Kein Bauer zugeordnet");
       showMessage("Kein Bauer zugeordnet");
       return;
     }
     if (!invVarietyId) {
+      console.warn("⚠️ Keine Sorte ausgewählt");
       showMessage("Sorte wählen");
       return;
     }
@@ -2174,12 +2214,19 @@ async function loadFarmerPackStatsWrapper(farmerId: number) {
     const qtyKg = parseKg(invQuantityKg);
     const variety = safeVarieties.find((v) => v.id === varietyIdNum);
 
+    console.log("📋 Bestätigungsbox wird geöffnet:", {
+      varietyIdNum,
+      qtyKg,
+      varietyName: variety?.name
+    });
+
     setConfirmAction({
       title: "Inventur speichern?",
       message: `Sorte ${variety?.name ?? ""} auf ${formatKg(qtyKg)} kg setzen. Sind Sie sicher?`,
       confirmLabel: "Ja, Inventur speichern",
       cancelLabel: "Nein, abbrechen",
       onConfirm: () => {
+        console.log("✅ Bestätigung erhalten, rufe doInventory auf");
         setConfirmAction(null);
         // Verwende die gespeicherten Werte, nicht die State-Variablen
         doInventory(varietyIdNum, qtyKg);
