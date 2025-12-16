@@ -789,11 +789,28 @@ export function FarmerStockTab(props: FarmerStockTabProps) {
               onFocus={openSelectOnFocus}
             >
               <option value="">– Bauer wählen –</option>
-              {farmers.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
-              ))}
+              {(() => {
+                // Nur Bauern anzeigen, die tatsächlich Lagerbestand haben
+                const farmersWithStock = farmers.filter((f) => {
+                  return farmerStocks.some(
+                    (s) => s.farmerId === f.id && Number(s.quantityTons) > 0
+                  );
+                });
+                
+                if (farmersWithStock.length === 0) {
+                  return (
+                    <option value="" disabled>
+                      Keine Bauern mit Lagerbestand verfügbar
+                    </option>
+                  );
+                }
+                
+                return farmersWithStock.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ));
+              })()}
             </select>
 
             <label>Sorte / Qualität</label>

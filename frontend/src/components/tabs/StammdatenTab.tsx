@@ -1135,9 +1135,17 @@ export function StammdatenTab(props: StammdatenTabProps) {
                 : `${API_URL}/varieties`;
               const method = isEditing ? "PUT" : "POST";
               
+              const token = localStorage.getItem("authToken");
+              const headers: HeadersInit = {
+                "Content-Type": "application/json",
+              };
+              if (token) {
+                headers["Authorization"] = `Bearer ${token}`;
+              }
+
               const res = await fetch(url, {
                 method,
-                headers: { "Content-Type": "application/json" },
+                headers,
                 body: JSON.stringify({
                   name: varietyName,
                   cookingType: varietyCookingType,
@@ -1145,7 +1153,16 @@ export function StammdatenTab(props: StammdatenTabProps) {
                 }),
               });
               if (!res.ok) {
-                showMessage(isEditing ? "Fehler beim Ändern der Sorte" : "Fehler beim Anlegen der Sorte");
+                const errorText = await res.text().catch(() => "");
+                let errorMessage = isEditing ? "Fehler beim Ändern der Sorte" : "Fehler beim Anlegen der Sorte";
+                try {
+                  const errorData = JSON.parse(errorText);
+                  errorMessage = errorData.error || errorMessage;
+                } catch {
+                  errorMessage = errorText || errorMessage;
+                }
+                console.error("Sorten-Fehler:", res.status, errorMessage);
+                showMessage(errorMessage);
                 return;
               }
               setVarietyName("");

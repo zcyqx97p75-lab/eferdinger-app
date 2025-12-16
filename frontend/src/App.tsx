@@ -1905,30 +1905,22 @@ async function loadFarmerPackStatsWrapper(farmerId: number) {
         try {
           await createOrUpdateCustomer(
             {
-              name: customerName,
-              region: customerRegion,
+              name: customerName.trim(),
+              region: customerRegion.trim() || undefined,
             },
             editingCustomerId
           );
-          
-          const res = await fetch(url, {
-            method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: customerName, region: customerRegion }),
-      });
-      if (!res.ok) {
-            showMessage(isEditing ? "Fehler beim Ändern des Kunden" : "Fehler beim Anlegen des Kunden");
-        return;
-      }
-      setCustomerName("");
-      setCustomerRegion("");
+
+          setCustomerName("");
+          setCustomerRegion("");
           setEditingCustomerId(null);
-      await loadCustomers();
+          await loadCustomers();
           showMessage(isEditing ? "Kunde geändert" : "Kunde gespeichert");
-    } catch (err) {
-      console.error(err);
-          showMessage(isEditing ? "Fehler beim Ändern des Kunden" : "Fehler beim Anlegen des Kunden");
-    }
+        } catch (err) {
+          console.error(err);
+          const errorMessage = err instanceof Error ? err.message : (isEditing ? "Fehler beim Ändern des Kunden" : "Fehler beim Anlegen des Kunden");
+          showMessage(errorMessage);
+        }
       },
     });
   }
@@ -2370,7 +2362,16 @@ function handlePackstationInventoryZero(e: React.FormEvent) {
         return;
       }
 
-      await loadFarmerStocksWrapper(farmerId);
+      // Für Packbetrieb: Alle FarmerStocks neu laden (ohne farmerId), damit die Bauernliste aktualisiert wird
+      // Für Farmer: Nur die eigenen FarmerStocks neu laden
+      if (farmerIdOverride !== undefined) {
+        // Packbetrieb-Verkauf: Alle FarmerStocks neu laden
+        await loadFarmerStocksWrapper();
+      } else {
+        // Farmer-Verkauf: Nur eigene FarmerStocks neu laden
+        await loadFarmerStocksWrapper(farmerId);
+      }
+      
       showMessage(
         type === "PRIVATE"
           ? "Privatverkauf verbucht"
@@ -2505,10 +2506,10 @@ function handlePackstationInventoryZero(e: React.FormEvent) {
       }, Menge ${formatKg(qtyKg)} kg${sortierLabel ? `, Größe: ${sortierLabel}` : ""}${qualityLabel ? `, Qualität: ${qualityLabel}` : ""}. Sind Sie sicher?`,
       confirmLabel: "Ja, Verkauf an EZG verbuchen",
       cancelLabel: "Nein, abbrechen",
-      onConfirm: () => {
+      onConfirm: async () => {
         setConfirmAction(null);
 
-        doSale(
+        await doSale(
           "EG",
           pbVarietyId as number,
           qtyKg,
@@ -2527,6 +2528,11 @@ function handlePackstationInventoryZero(e: React.FormEvent) {
         setPbHarvestDate("");
         setPbSortierGroesse("");
         setPbQuality("");
+        
+        // Alle FarmerStocks neu laden, damit die Bauernliste aktualisiert wird
+        if (isPackbetrieb) {
+          await loadFarmerStocksWrapper();
+        }
       },
     });
   }

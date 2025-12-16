@@ -18,15 +18,30 @@ export async function createOrUpdateFarmer(
   const url = editingId ? `${API_URL}/farmers/${editingId}` : `${API_URL}/farmers`;
   const method = editingId ? "PUT" : "POST";
 
+  const token = localStorage.getItem("authToken");
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const res = await fetch(url, {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(farmerData),
   });
 
   if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(errorText || "Fehler beim Speichern des Bauern");
+    const errorText = await res.text().catch(() => "");
+    let errorMessage = "Fehler beim Speichern des Bauern";
+    try {
+      const errorData = JSON.parse(errorText);
+      errorMessage = errorData.error || errorMessage;
+    } catch {
+      errorMessage = errorText || errorMessage;
+    }
+    throw new Error(errorMessage);
   }
 
   return res.json();
@@ -36,15 +51,30 @@ export async function resetFarmerPassword(
   farmerId: number,
   newPassword: string
 ): Promise<void> {
+  const token = localStorage.getItem("authToken");
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${API_URL}/farmers/${farmerId}/reset-password`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ newPassword: newPassword.trim() }),
   });
 
   if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(errorText || "Fehler beim Zurücksetzen des Passworts");
+    const errorText = await res.text().catch(() => "");
+    let errorMessage = "Fehler beim Zurücksetzen des Passworts";
+    try {
+      const errorData = JSON.parse(errorText);
+      errorMessage = errorData.error || errorMessage;
+    } catch {
+      errorMessage = errorText || errorMessage;
+    }
+    throw new Error(errorMessage);
   }
 }
 
