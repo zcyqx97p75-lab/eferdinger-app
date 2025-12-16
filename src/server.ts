@@ -220,6 +220,12 @@ app.get("/api/products", async (_req, res) => {
 
 app.post("/api/products", async (req, res) => {
   try {
+    // Ignoriere 'id' falls im Body vorhanden (sollte nicht passieren, aber sicherheitshalber)
+    const { id, ...productData } = req.body;
+    if (id) {
+      console.warn("POST /api/products: 'id' wurde im Request-Body ignoriert:", id);
+    }
+    
     const {
       name,
       cookingType,   // "FESTKOCHEND" | "VORWIEGEND_FESTKOCHEND" | "MEHLIG"
@@ -229,7 +235,7 @@ app.post("/api/products", async (req, res) => {
       packagingType, // Enum PackagingType
       productNumber, // optional
       taxRateId,
-    } = req.body;
+    } = productData;
 
     if (!name || !cookingType || unitKg == null) {
       return res
@@ -848,12 +854,18 @@ app.post("/api/farmers", async (req, res) => {
       country,
     });
 
+    // Hashe das Passwort, falls vorhanden
+    let hashedPassword: string | null = null;
+    if (loginPassword) {
+      hashedPassword = await bcrypt.hash(loginPassword.trim(), 10);
+    }
+
     const farmer = await (prisma as any).farmer.create({
       data: {
         name,
         ggn: ggn ?? null,
         email: loginEmail ?? null,
-        passwordHash: loginPassword ?? null,
+        passwordHash: hashedPassword,
         addressId: addr?.id ?? null,
         isFlatRate: !!isFlatRate,
         flatRateNote: flatRateNote ?? null,
@@ -861,18 +873,29 @@ app.post("/api/farmers", async (req, res) => {
       include: { address: true },
     });
 
-    if (loginEmail && loginPassword) {
+    // Lege User an, wenn E-Mail vorhanden ist
+    if (loginEmail) {
+      // Wenn kein Passwort angegeben wurde, setze ein Standard-Passwort (kann später geändert werden)
+      const userPassword = hashedPassword || await bcrypt.hash("12345", 10);
+      
       await prisma.user.upsert({
         where: { email: loginEmail },
-        update: { farmerId: farmer.id },
+        update: { 
+          farmerId: farmer.id,
+          name: farmer.name,
+          // Aktualisiere Passwort nur, wenn ein neues angegeben wurde
+          ...(loginPassword && { password: userPassword }),
+        },
         create: {
           email: loginEmail,
-          password: loginPassword,
+          password: userPassword,
           name: farmer.name,
           role: "FARMER",
           farmerId: farmer.id,
         },
       });
+      
+      console.log(`✅ User für Farmer ${farmer.id} (${loginEmail}) wurde angelegt/aktualisiert`);
     }
 
     res.status(201).json(farmer);
@@ -944,6 +967,12 @@ app.put("/api/farmers/:id", async (req, res) => {
       }
     }
 
+    // Hashe das Passwort, falls ein neues angegeben wurde
+    let hashedPassword: string | null = existingFarmer.passwordHash;
+    if (loginPassword) {
+      hashedPassword = await bcrypt.hash(loginPassword.trim(), 10);
+    }
+
     // Aktualisiere den Bauern
     const farmer = await (prisma as any).farmer.update({
       where: { id: Number(id) },
@@ -951,7 +980,7 @@ app.put("/api/farmers/:id", async (req, res) => {
         name,
         ggn: ggn ?? null,
         email: loginEmail ?? null,
-        passwordHash: loginPassword ? loginPassword : existingFarmer.passwordHash,
+        passwordHash: hashedPassword,
         addressId: addr?.id ?? null,
         isFlatRate: !!isFlatRate,
         flatRateNote: flatRateNote ?? null,
@@ -959,23 +988,41 @@ app.put("/api/farmers/:id", async (req, res) => {
       include: { address: true },
     });
 
-    // Aktualisiere User, falls Login-Daten geändert wurden
+    // Aktualisiere oder erstelle User, falls E-Mail vorhanden ist
     if (loginEmail) {
+      // Wenn kein Passwort angegeben wurde, verwende das bestehende oder setze Standard-Passwort
+      const userPassword = hashedPassword || (existingFarmer.email ? undefined : await bcrypt.hash("12345", 10));
+      
       await prisma.user.upsert({
         where: { email: loginEmail },
         update: {
           farmerId: farmer.id,
           name: farmer.name,
-          password: loginPassword ? loginPassword : undefined,
+          // Aktualisiere Passwort nur, wenn ein neues angegeben wurde
+          ...(loginPassword && userPassword && { password: userPassword }),
         },
         create: {
           email: loginEmail,
-          password: loginPassword || "",
+          password: userPassword || await bcrypt.hash("12345", 10),
           name: farmer.name,
           role: "FARMER",
           farmerId: farmer.id,
         },
       });
+      
+      console.log(`✅ User für Farmer ${farmer.id} (${loginEmail}) wurde aktualisiert/angelegt`);
+    } else if (existingFarmer.email) {
+      // Wenn E-Mail entfernt wurde, entferne auch die Verknüpfung zum User (aber lösche den User nicht)
+      const user = await prisma.user.findUnique({
+        where: { email: existingFarmer.email },
+      });
+      if (user) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { farmerId: null },
+        });
+        console.log(`⚠️ Verknüpfung zwischen User ${user.id} (${existingFarmer.email}) und Farmer ${farmer.id} wurde entfernt`);
+      }
     }
 
     res.json(farmer);
