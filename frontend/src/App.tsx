@@ -2274,23 +2274,40 @@ function handlePackstationInventoryZero(e: React.FormEvent) {
     ),
     confirmLabel: "Ja, auf 0 setzen",
     cancelLabel: "Abbrechen",
-    onConfirm: async () => {
-      setConfirmAction(null);
-      try {
-        const res = await fetch(`${API_URL}/packstation/inventory-zero`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            farmerId,
-            varietyId,
-            comment: packZeroComment || null,
-          }),
-        });
+      onConfirm: async () => {
+        setConfirmAction(null);
+        try {
+          const token = localStorage.getItem("authToken");
+          const headers: HeadersInit = {
+            "Content-Type": "application/json",
+          };
+          if (token) {
+            headers["Authorization"] = `Bearer ${token}`;
+          }
 
-        if (!res.ok) {
-          showMessage("Fehler beim 0-Setzen im Packstellenlager");
-          return;
-        }
+          const res = await fetch(`${API_URL}/packstation/inventory-zero`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              farmerId,
+              varietyId,
+              comment: packZeroComment || null,
+            }),
+          });
+
+          if (!res.ok) {
+            const errorText = await res.text().catch(() => "");
+            let errorMessage = "Fehler beim 0-Setzen im Packstellenlager";
+            try {
+              const errorData = JSON.parse(errorText);
+              errorMessage = errorData.error || errorMessage;
+            } catch {
+              errorMessage = errorText || errorMessage;
+            }
+            console.error("Inventory-Zero-Fehler:", res.status, errorMessage);
+            showMessage(`Fehler beim 0-Setzen im Packstellenlager: ${errorMessage}`);
+            return;
+          }
 
         setPackZeroSelection("");
         setPackZeroComment("");
@@ -3088,9 +3105,17 @@ async function loadPackbetriebStatistics() {
       onConfirm: async () => {
         setConfirmAction(null);
         try {
+          const token = localStorage.getItem("authToken");
+          const headers: HeadersInit = {
+            "Content-Type": "application/json",
+          };
+          if (token) {
+            headers["Authorization"] = `Bearer ${token}`;
+          }
+
           const res = await fetch(`${API_URL}/packstation/waste`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers,
             body: JSON.stringify({
               farmerId,
               varietyId,
@@ -3099,7 +3124,16 @@ async function loadPackbetriebStatistics() {
           });
 
           if (!res.ok) {
-            showMessage("Fehler beim Verbuchen des Abfalls");
+            const errorText = await res.text().catch(() => "");
+            let errorMessage = "Fehler beim Verbuchen des Abfalls";
+            try {
+              const errorData = JSON.parse(errorText);
+              errorMessage = errorData.error || errorMessage;
+            } catch {
+              errorMessage = errorText || errorMessage;
+            }
+            console.error("Waste-Fehler:", res.status, errorMessage);
+            showMessage(`Fehler beim Verbuchen des Abfalls: ${errorMessage}`);
             return;
           }
 
@@ -3709,9 +3743,17 @@ function handlePackstationPacking(e: React.FormEvent) {
     onConfirm: async () => {
       setConfirmAction(null);
       try {
+        const token = localStorage.getItem("authToken");
+        const headers: HeadersInit = {
+          "Content-Type": "application/json",
+        };
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
         const res = await fetch(`${API_URL}/packaging-runs`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({
             productId: packProductId,
             quantityUnits: units,
@@ -3721,7 +3763,16 @@ function handlePackstationPacking(e: React.FormEvent) {
         });
 
         if (!res.ok) {
-          showMessage("Fehler beim Verbuchen der Verpackung");
+          const errorText = await res.text().catch(() => "");
+          let errorMessage = "Fehler beim Verbuchen der Verpackung";
+          try {
+            const errorData = JSON.parse(errorText);
+            errorMessage = errorData.error || errorMessage;
+          } catch {
+            errorMessage = errorText || errorMessage;
+          }
+          console.error("Verpackungs-Fehler:", res.status, errorMessage);
+          showMessage(`Fehler beim Verbuchen der Verpackung: ${errorMessage}`);
           return;
         }
 
