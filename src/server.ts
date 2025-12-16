@@ -237,15 +237,37 @@ app.post("/api/products", async (req, res) => {
         .json({ error: "name, cookingType und unitKg sind Pflichtfelder" });
     }
 
+    // Prüfe, ob Produkt mit gleichem Namen bereits existiert
+    const existingProduct = await prisma.product.findFirst({
+      where: { name: name.trim() },
+    });
+    if (existingProduct) {
+      return res.status(400).json({
+        error: `Ein Produkt mit dem Namen "${name.trim()}" existiert bereits`,
+      });
+    }
+
+    // Prüfe, ob Produktnummer bereits existiert (falls angegeben)
+    if (productNumber && productNumber.trim()) {
+      const existingByNumber = await prisma.product.findFirst({
+        where: { productNumber: productNumber.trim() },
+      });
+      if (existingByNumber) {
+        return res.status(400).json({
+          error: `Ein Produkt mit der Produktnummer "${productNumber.trim()}" existiert bereits`,
+        });
+      }
+    }
+
     const product = await prisma.product.create({
       data: {
-        name,
+        name: name.trim(),
         cookingType,
         unitKg: Number(unitKg),
         unitsPerColli: unitsPerColli != null ? Number(unitsPerColli) : null,
         collisPerPallet: collisPerPallet != null ? Number(collisPerPallet) : null,
         packagingType: packagingType || null,
-        productNumber: productNumber || null,
+        productNumber: productNumber?.trim() || null,
         taxRateId: taxRateId != null ? Number(taxRateId) : null,
       },
     });
@@ -253,6 +275,25 @@ app.post("/api/products", async (req, res) => {
     res.status(201).json(product);
   } catch (err: any) {
     console.error("Fehler in POST /api/products:", err);
+    
+    // Prüfe auf Unique Constraint Fehler
+    if (err.code === "P2002") {
+      const field = err.meta?.target?.[0] || "Feld";
+      let errorMessage = `Ein Produkt mit diesem ${field} existiert bereits`;
+      
+      // Spezifischere Fehlermeldungen
+      if (err.meta?.target?.includes("name")) {
+        errorMessage = "Ein Produkt mit diesem Namen existiert bereits";
+      } else if (err.meta?.target?.includes("productNumber")) {
+        errorMessage = "Ein Produkt mit dieser Produktnummer existiert bereits";
+      }
+      
+      return res.status(400).json({
+        error: errorMessage,
+        detail: err.meta?.target ? `Unique constraint auf ${err.meta.target.join(", ")} verletzt` : undefined,
+      });
+    }
+    
     res.status(500).json({
       error: "Fehler beim Anlegen des Produkts",
       detail: String(err.message || err),
@@ -7816,6 +7857,32 @@ async function ensureTaxRates() {
     }
   }
 }
+
+// Error Handler für unhandled exceptions - verhindert Server-Crashes
+process.on("uncaughtException", (error: Error) => {
+  console.error("❌ Uncaught Exception:", error);
+  console.error("Stack:", error.stack);
+  // Server nicht beenden, sondern weiterlaufen lassen (Railway wird automatisch neu starten)
+});
+
+process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
+  console.error("❌ Unhandled Rejection:", reason);
+  console.error("Promise:", promise);
+  // Server nicht beenden, sondern weiterlaufen lassen
+});
+
+// Graceful Shutdown Handler
+process.on("SIGTERM", async () => {
+  console.log("SIGTERM empfangen, beende Server...");
+  await prisma.$disconnect();
+  process.exit(0);
+});
+
+process.on("SIGINT", async () => {
+  console.log("SIGINT empfangen, beende Server...");
+  await prisma.$disconnect();
+  process.exit(0);
+});
 
 // Serverstart
 (async () => {
