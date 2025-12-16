@@ -278,19 +278,32 @@ app.post("/api/products", async (req, res) => {
     
     // Prüfe auf Unique Constraint Fehler
     if (err.code === "P2002") {
-      const field = err.meta?.target?.[0] || "Feld";
+      const targetFields = err.meta?.target || [];
+      // Ignoriere 'id' - das ist ein Primary Key, kein Unique Constraint
+      const relevantFields = targetFields.filter((f: string) => f !== "id");
+      
+      if (relevantFields.length === 0) {
+        // Wenn nur 'id' betroffen ist, ist das ein unerwarteter Fehler
+        console.error("Unerwarteter Unique Constraint Fehler auf 'id':", err);
+        return res.status(500).json({
+          error: "Fehler beim Aktualisieren des Produkts",
+          detail: "Unerwarteter Datenbankfehler",
+        });
+      }
+      
+      const field = relevantFields[0];
       let errorMessage = `Ein Produkt mit diesem ${field} existiert bereits`;
       
       // Spezifischere Fehlermeldungen
-      if (err.meta?.target?.includes("name")) {
+      if (relevantFields.includes("name")) {
         errorMessage = "Ein Produkt mit diesem Namen existiert bereits";
-      } else if (err.meta?.target?.includes("productNumber")) {
+      } else if (relevantFields.includes("productNumber")) {
         errorMessage = "Ein Produkt mit dieser Produktnummer existiert bereits";
       }
       
       return res.status(400).json({
         error: errorMessage,
-        detail: err.meta?.target ? `Unique constraint auf ${err.meta.target.join(", ")} verletzt` : undefined,
+        detail: `Unique constraint auf ${relevantFields.join(", ")} verletzt`,
       });
     }
     
@@ -322,16 +335,49 @@ app.put("/api/products/:id", async (req, res) => {
         .json({ error: "name, cookingType und unitKg sind Pflichtfelder" });
     }
 
+    // Hole das bestehende Produkt
+    const existingProduct = await prisma.product.findUnique({
+      where: { id: Number(id) },
+    });
+
+    if (!existingProduct) {
+      return res.status(404).json({ error: "Produkt nicht gefunden" });
+    }
+
+    // Prüfe, ob Name bereits von einem anderen Produkt verwendet wird (wenn geändert)
+    if (name.trim() !== existingProduct.name) {
+      const productWithName = await prisma.product.findFirst({
+        where: { name: name.trim() },
+      });
+      if (productWithName && productWithName.id !== Number(id)) {
+        return res.status(400).json({
+          error: `Ein anderes Produkt mit dem Namen "${name.trim()}" existiert bereits`,
+        });
+      }
+    }
+
+    // Prüfe, ob Produktnummer bereits von einem anderen Produkt verwendet wird (wenn geändert)
+    if (productNumber && productNumber.trim() && productNumber.trim() !== existingProduct.productNumber) {
+      const productWithNumber = await prisma.product.findFirst({
+        where: { productNumber: productNumber.trim() },
+      });
+      if (productWithNumber && productWithNumber.id !== Number(id)) {
+        return res.status(400).json({
+          error: `Ein anderes Produkt mit der Produktnummer "${productNumber.trim()}" existiert bereits`,
+        });
+      }
+    }
+
     const product = await prisma.product.update({
       where: { id: Number(id) },
       data: {
-        name,
+        name: name.trim(),
         cookingType,
         unitKg: Number(unitKg),
         unitsPerColli: unitsPerColli != null ? Number(unitsPerColli) : null,
         collisPerPallet: collisPerPallet != null ? Number(collisPerPallet) : null,
         packagingType: packagingType || null,
-        productNumber: productNumber || null,
+        productNumber: productNumber?.trim() || null,
         taxRateId: taxRateId != null ? Number(taxRateId) : null,
       },
     });
@@ -339,6 +385,38 @@ app.put("/api/products/:id", async (req, res) => {
     res.json(product);
   } catch (err: any) {
     console.error("Fehler in PUT /api/products/:id:", err);
+    
+    // Prüfe auf Unique Constraint Fehler
+    if (err.code === "P2002") {
+      const targetFields = err.meta?.target || [];
+      // Ignoriere 'id' - das ist ein Primary Key, kein Unique Constraint
+      const relevantFields = targetFields.filter((f: string) => f !== "id");
+      
+      if (relevantFields.length === 0) {
+        // Wenn nur 'id' betroffen ist, ist das ein unerwarteter Fehler
+        console.error("Unerwarteter Unique Constraint Fehler auf 'id':", err);
+        return res.status(500).json({
+          error: "Fehler beim Aktualisieren des Produkts",
+          detail: "Unerwarteter Datenbankfehler",
+        });
+      }
+      
+      const field = relevantFields[0];
+      let errorMessage = `Ein Produkt mit diesem ${field} existiert bereits`;
+      
+      // Spezifischere Fehlermeldungen
+      if (relevantFields.includes("name")) {
+        errorMessage = "Ein Produkt mit diesem Namen existiert bereits";
+      } else if (relevantFields.includes("productNumber")) {
+        errorMessage = "Ein Produkt mit dieser Produktnummer existiert bereits";
+      }
+      
+      return res.status(400).json({
+        error: errorMessage,
+        detail: `Unique constraint auf ${relevantFields.join(", ")} verletzt`,
+      });
+    }
+    
     res.status(500).json({
       error: "Fehler beim Aktualisieren des Produkts",
       detail: String(err.message || err),
