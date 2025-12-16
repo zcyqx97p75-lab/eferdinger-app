@@ -219,23 +219,24 @@ app.get("/api/products", async (_req, res) => {
 });
 
 app.post("/api/products", async (req, res) => {
-  const {
-    name,
-    cookingType,   // "FESTKOCHEND" | "VORWIEGEND_FESTKOCHEND" | "MEHLIG"
-    unitKg,        // z.B. 2
-    unitsPerColli, // optional
-    collisPerPallet,
-    packagingType, // Enum PackagingType
-    productNumber, // optional
-  } = req.body;
-
-  if (!name || !cookingType || unitKg == null) {
-    return res
-      .status(400)
-      .json({ error: "name, cookingType und unitKg sind Pflichtfelder" });
-  }
-
   try {
+    const {
+      name,
+      cookingType,   // "FESTKOCHEND" | "VORWIEGEND_FESTKOCHEND" | "MEHLIG"
+      unitKg,        // z.B. 2
+      unitsPerColli, // optional
+      collisPerPallet,
+      packagingType, // Enum PackagingType
+      productNumber, // optional
+      taxRateId,
+    } = req.body;
+
+    if (!name || !cookingType || unitKg == null) {
+      return res
+        .status(400)
+        .json({ error: "name, cookingType und unitKg sind Pflichtfelder" });
+    }
+
     const product = await prisma.product.create({
       data: {
         name,
@@ -245,7 +246,7 @@ app.post("/api/products", async (req, res) => {
         collisPerPallet: collisPerPallet != null ? Number(collisPerPallet) : null,
         packagingType: packagingType || null,
         productNumber: productNumber || null,
-        taxRateId: req.body.taxRateId ? Number(req.body.taxRateId) : null,
+        taxRateId: taxRateId != null ? Number(taxRateId) : null,
       },
     });
 
@@ -376,15 +377,15 @@ app.get("/api/varieties/by-farmer/:farmerId", async (req, res) => {
 });
 
 app.post("/api/varieties", async (req, res) => {
-  const { name, cookingType, quality } = req.body;
-
-  if (!name || !cookingType || !quality) {
-    return res
-      .status(400)
-      .json({ error: "name, cookingType und quality sind Pflichtfelder" });
-  }
-
   try {
+    const { name, cookingType, quality } = req.body;
+
+    if (!name || !cookingType || !quality) {
+      return res
+        .status(400)
+        .json({ error: "name, cookingType und quality sind Pflichtfelder" });
+    }
+
     const variety = await prisma.variety.create({
       data: {
         name,
@@ -404,16 +405,16 @@ app.post("/api/varieties", async (req, res) => {
 
 // ▶ UPDATE VARIETY
 app.put("/api/varieties/:id", async (req, res) => {
-  const { id } = req.params;
-  const { name, cookingType, quality } = req.body;
-
-  if (!name || !cookingType || !quality) {
-    return res.status(400).json({
-      error: "name, cookingType und quality sind Pflichtfelder",
-    });
-  }
-
   try {
+    const { id } = req.params;
+    const { name, cookingType, quality } = req.body;
+
+    if (!name || !cookingType || !quality) {
+      return res.status(400).json({
+        error: "name, cookingType und quality sind Pflichtfelder",
+      });
+    }
+
     const variety = await prisma.variety.update({
       where: { id: Number(id) },
       data: {
@@ -707,42 +708,50 @@ app.post("/api/farmers", async (req, res) => {
   } = req.body;
   if (!name) return res.status(400).json({ error: "Name erforderlich" });
 
-  // Verwende findOrCreateAddress um Duplikate zu vermeiden
-  const addr = await findOrCreateAddress({
-    street,
-    postalCode,
-    city,
-    country,
-  });
+  try {
+    // Verwende findOrCreateAddress um Duplikate zu vermeiden
+    const addr = await findOrCreateAddress({
+      street,
+      postalCode,
+      city,
+      country,
+    });
 
-  const farmer = await (prisma as any).farmer.create({
-    data: {
-      name,
-      ggn: ggn ?? null,
-      email: loginEmail ?? null,
-      passwordHash: loginPassword ?? null,
-      addressId: addr?.id ?? null,
-      isFlatRate: !!isFlatRate,
-      flatRateNote: flatRateNote ?? null,
-    },
-    include: { address: true },
-  });
-
-  if (loginEmail && loginPassword) {
-    await prisma.user.upsert({
-      where: { email: loginEmail },
-      update: { farmerId: farmer.id },
-      create: {
-        email: loginEmail,
-        password: loginPassword,
-        name: farmer.name,
-        role: "FARMER",
-        farmerId: farmer.id,
+    const farmer = await (prisma as any).farmer.create({
+      data: {
+        name,
+        ggn: ggn ?? null,
+        email: loginEmail ?? null,
+        passwordHash: loginPassword ?? null,
+        addressId: addr?.id ?? null,
+        isFlatRate: !!isFlatRate,
+        flatRateNote: flatRateNote ?? null,
       },
+      include: { address: true },
+    });
+
+    if (loginEmail && loginPassword) {
+      await prisma.user.upsert({
+        where: { email: loginEmail },
+        update: { farmerId: farmer.id },
+        create: {
+          email: loginEmail,
+          password: loginPassword,
+          name: farmer.name,
+          role: "FARMER",
+          farmerId: farmer.id,
+        },
+      });
+    }
+
+    res.status(201).json(farmer);
+  } catch (err: any) {
+    console.error("Fehler in POST /api/farmers:", err);
+    res.status(500).json({
+      error: "Fehler beim Anlegen des Bauern",
+      detail: String(err.message || err),
     });
   }
-
-  res.status(201).json(farmer);
 });
 
 // ▶ UPDATE FARMER
