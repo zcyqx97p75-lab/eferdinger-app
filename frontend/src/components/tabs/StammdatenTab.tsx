@@ -1143,15 +1143,22 @@ export function StammdatenTab(props: StammdatenTabProps) {
                 headers["Authorization"] = `Bearer ${token}`;
               }
 
+              const requestBody = {
+                name: varietyName,
+                cookingType: varietyCookingType,
+                quality: varietyQuality,
+              };
+
+              console.log("📤 Sorte speichern:", { url, method, body: requestBody, hasToken: !!token });
+
               const res = await fetch(url, {
                 method,
                 headers,
-                body: JSON.stringify({
-                  name: varietyName,
-                  cookingType: varietyCookingType,
-                  quality: varietyQuality,
-                }),
+                body: JSON.stringify(requestBody),
               });
+
+              console.log("📥 Sorte Response:", { status: res.status, statusText: res.statusText, ok: res.ok });
+
               if (!res.ok) {
                 const errorText = await res.text().catch(() => "");
                 let errorMessage = isEditing ? "Fehler beim Ändern der Sorte" : "Fehler beim Anlegen der Sorte";
@@ -1161,10 +1168,13 @@ export function StammdatenTab(props: StammdatenTabProps) {
                 } catch {
                   errorMessage = errorText || errorMessage;
                 }
-                console.error("Sorten-Fehler:", res.status, errorMessage);
+                console.error("❌ Sorten-Fehler:", res.status, errorMessage, errorText);
                 showMessage(errorMessage);
                 return;
               }
+
+              const result = await res.json();
+              console.log("✅ Sorte gespeichert:", result);
               setVarietyName("");
               setVarietyCookingType("FESTKOCHEND");
               setVarietyQuality("Q1");

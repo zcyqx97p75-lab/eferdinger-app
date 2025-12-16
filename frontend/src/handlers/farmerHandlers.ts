@@ -26,11 +26,15 @@ export async function createOrUpdateFarmer(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
+  console.log("📤 Bauer speichern:", { url, method, body: farmerData, hasToken: !!token });
+
   const res = await fetch(url, {
     method,
     headers,
     body: JSON.stringify(farmerData),
   });
+
+  console.log("📥 Bauer Response:", { status: res.status, statusText: res.statusText, ok: res.ok });
 
   if (!res.ok) {
     const errorText = await res.text().catch(() => "");
@@ -41,10 +45,13 @@ export async function createOrUpdateFarmer(
     } catch {
       errorMessage = errorText || errorMessage;
     }
+    console.error("❌ Bauer-Fehler:", res.status, errorMessage, errorText);
     throw new Error(errorMessage);
   }
 
-  return res.json();
+  const result = await res.json();
+  console.log("✅ Bauer gespeichert:", result);
+  return result;
 }
 
 export async function resetFarmerPassword(

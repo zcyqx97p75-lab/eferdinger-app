@@ -25,15 +25,21 @@ export async function createOrUpdateProduct(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
+  const requestBody = {
+    ...productData,
+    packagingType: productData.packagingType || null,
+    productNumber: productData.productNumber || null,
+  };
+
+  console.log("📤 Produkt speichern:", { url, method, body: requestBody, hasToken: !!token });
+
   const res = await fetch(url, {
     method,
     headers,
-    body: JSON.stringify({
-      ...productData,
-      packagingType: productData.packagingType || null,
-      productNumber: productData.productNumber || null,
-    }),
+    body: JSON.stringify(requestBody),
   });
+
+  console.log("📥 Produkt Response:", { status: res.status, statusText: res.statusText, ok: res.ok });
 
   if (!res.ok) {
     const errorText = await res.text().catch(() => "");
@@ -44,9 +50,12 @@ export async function createOrUpdateProduct(
     } catch {
       errorMessage = errorText || errorMessage;
     }
+    console.error("❌ Produkt-Fehler:", res.status, errorMessage, errorText);
     throw new Error(errorMessage);
   }
 
-  return res.json();
+  const result = await res.json();
+  console.log("✅ Produkt gespeichert:", result);
+  return result;
 }
 
