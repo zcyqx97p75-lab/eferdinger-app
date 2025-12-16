@@ -2086,6 +2086,10 @@ async function loadFarmerPackStatsWrapper(farmerId: number) {
           setUserPassword("");
           setUserRole("PACKBETRIEB");
           setUserCreateError(null);
+          
+          // User-Liste neu laden
+          await loadAllUsersWrapper();
+          
           showMessage(`User "${data.user?.name || trimmedName}" wurde erfolgreich angelegt`);
         } catch (err: any) {
           console.error("Fehler beim Anlegen des Users:", err);
@@ -3817,6 +3821,11 @@ async function handleImportPlansFromCsv() {
     }
 
     const data = await res.json();
+    
+    // Planmengen neu laden
+    const currentYear = new Date().getFullYear();
+    await loadDeliveryPlansWrapper(currentYear);
+    
     showMessage(
       `Import abgeschlossen: ${data.importedCount} Zeilen, Fehler: ${data.errorCount}`
     );
