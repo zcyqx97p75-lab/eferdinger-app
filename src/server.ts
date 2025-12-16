@@ -7661,11 +7661,49 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(401).json({ error: "Ungültige Zugangsdaten" });
     }
 
+    // Wenn User ein FARMER ist, aber farmerId fehlt, versuche Farmer über E-Mail zu finden
+    let finalFarmerId = user.farmerId;
+    if (user.role === "FARMER" && !finalFarmerId) {
+      console.log(`⚠️ User ${user.id} (${user.email}) ist FARMER, aber farmerId ist null. Suche Farmer über E-Mail...`);
+      
+      // Versuche Farmer über E-Mail zu finden
+      const farmerByEmail = await (prisma as any).farmer.findUnique({
+        where: { email: user.email },
+      });
+      
+      if (farmerByEmail) {
+        console.log(`✅ Farmer gefunden über E-Mail: ${farmerByEmail.id} (${farmerByEmail.name})`);
+        // Verknüpfe User mit Farmer
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { farmerId: farmerByEmail.id },
+        });
+        finalFarmerId = farmerByEmail.id;
+      } else {
+        // Fallback: Versuche Farmer über Name zu finden
+        const farmerByName = await (prisma as any).farmer.findFirst({
+          where: { name: user.name },
+        });
+        
+        if (farmerByName) {
+          console.log(`✅ Farmer gefunden über Name: ${farmerByName.id} (${farmerByName.name})`);
+          // Verknüpfe User mit Farmer
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { farmerId: farmerByName.id },
+          });
+          finalFarmerId = farmerByName.id;
+        } else {
+          console.warn(`⚠️ Kein Farmer gefunden für User ${user.id} (${user.email}, ${user.name})`);
+        }
+      }
+    }
+
     res.json({
       id: user.id,
       name: user.name,
       role: user.role,
-      farmerId: user.farmerId,
+      farmerId: finalFarmerId,
     });
   } catch (err) {
     console.error("Fehler bei /api/auth/login:", err);
