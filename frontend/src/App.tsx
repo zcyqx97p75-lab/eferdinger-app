@@ -2370,6 +2370,10 @@ function handlePackstationInventoryZero(e: React.FormEvent) {
       } else {
         // Farmer-Verkauf: Nur eigene FarmerStocks neu laden
         await loadFarmerStocksWrapper(farmerId);
+        // Auch FarmerPackStats neu laden, damit die Statistik aktualisiert wird
+        if (currentUser?.farmerId) {
+          await loadFarmerPackStatsWrapper(currentUser.farmerId);
+        }
       }
       
       showMessage(
@@ -2445,10 +2449,10 @@ function handlePackstationInventoryZero(e: React.FormEvent) {
           ? "Ja, Privatverkauf verbuchen"
           : "Ja, Verkauf an EZG verbuchen",
       cancelLabel: "Nein, abbrechen",
-      onConfirm: () => {
+      onConfirm: async () => {
         setConfirmAction(null);
         clear(); // Felder leeren
-        doSale(type, varietyId as number, qtyKg, fieldName, harvestDate, undefined, sortierGroesse, varietyQuality);
+        await doSale(type, varietyId as number, qtyKg, fieldName, harvestDate, undefined, sortierGroesse, varietyQuality);
       },
     });
   }
