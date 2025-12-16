@@ -2380,6 +2380,11 @@ function handlePackstationInventoryZero(e: React.FormEvent) {
         }
       }
       
+      // Bei EG-Verkauf: Packstellenlager auch neu laden, da die Rohware in die Packstelle kommt
+      if (type === "EG") {
+        await loadPackStationStockWrapper();
+      }
+      
       showMessage(
         type === "PRIVATE"
           ? "Privatverkauf verbucht"
