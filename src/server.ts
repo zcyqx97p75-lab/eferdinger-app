@@ -262,25 +262,25 @@ app.post("/api/products", async (req, res) => {
 
 // ▶ UPDATE PRODUCT
 app.put("/api/products/:id", async (req, res) => {
-  const { id } = req.params;
-  const {
-    name,
-    cookingType,
-    unitKg,
-    unitsPerColli,
-    collisPerPallet,
-    packagingType,
-    productNumber,
-  } = req.body;
-
-  if (!name || !cookingType || unitKg == null) {
-    return res
-      .status(400)
-      .json({ error: "name, cookingType und unitKg sind Pflichtfelder" });
-  }
-
   try {
-    const { taxRateId } = req.body;
+    const { id } = req.params;
+    const {
+      name,
+      cookingType,
+      unitKg,
+      unitsPerColli,
+      collisPerPallet,
+      packagingType,
+      productNumber,
+      taxRateId,
+    } = req.body;
+
+    if (!name || !cookingType || unitKg == null) {
+      return res
+        .status(400)
+        .json({ error: "name, cookingType und unitKg sind Pflichtfelder" });
+    }
+
     const product = await prisma.product.update({
       where: { id: Number(id) },
       data: {
@@ -709,6 +709,18 @@ app.post("/api/farmers", async (req, res) => {
   if (!name) return res.status(400).json({ error: "Name erforderlich" });
 
   try {
+    // Prüfe, ob E-Mail bereits existiert (wenn angegeben)
+    if (loginEmail) {
+      const existingFarmer = await (prisma as any).farmer.findUnique({
+        where: { email: loginEmail },
+      });
+      if (existingFarmer) {
+        return res.status(400).json({
+          error: `Ein Bauer mit der E-Mail "${loginEmail}" existiert bereits`,
+        });
+      }
+    }
+
     // Verwende findOrCreateAddress um Duplikate zu vermeiden
     const addr = await findOrCreateAddress({
       street,
@@ -747,6 +759,16 @@ app.post("/api/farmers", async (req, res) => {
     res.status(201).json(farmer);
   } catch (err: any) {
     console.error("Fehler in POST /api/farmers:", err);
+    
+    // Prüfe auf Unique Constraint Fehler
+    if (err.code === "P2002") {
+      const field = err.meta?.target?.[0] || "Feld";
+      return res.status(400).json({
+        error: `Ein Bauer mit diesem ${field} existiert bereits`,
+        detail: err.meta?.target ? `Unique constraint auf ${err.meta.target.join(", ")} verletzt` : undefined,
+      });
+    }
+    
     res.status(500).json({
       error: "Fehler beim Anlegen des Bauern",
       detail: String(err.message || err),
@@ -791,6 +813,18 @@ app.put("/api/farmers/:id", async (req, res) => {
       country,
     });
 
+    // Prüfe, ob E-Mail bereits von einem anderen Farmer verwendet wird (wenn geändert)
+    if (loginEmail && loginEmail !== existingFarmer.email) {
+      const farmerWithEmail = await (prisma as any).farmer.findUnique({
+        where: { email: loginEmail },
+      });
+      if (farmerWithEmail && farmerWithEmail.id !== Number(id)) {
+        return res.status(400).json({
+          error: `Ein anderer Bauer mit der E-Mail "${loginEmail}" existiert bereits`,
+        });
+      }
+    }
+
     // Aktualisiere den Bauern
     const farmer = await (prisma as any).farmer.update({
       where: { id: Number(id) },
@@ -828,6 +862,16 @@ app.put("/api/farmers/:id", async (req, res) => {
     res.json(farmer);
   } catch (err: any) {
     console.error("Fehler in PUT /api/farmers/:id:", err);
+    
+    // Prüfe auf Unique Constraint Fehler
+    if (err.code === "P2002") {
+      const field = err.meta?.target?.[0] || "Feld";
+      return res.status(400).json({
+        error: `Ein Bauer mit diesem ${field} existiert bereits`,
+        detail: err.meta?.target ? `Unique constraint auf ${err.meta.target.join(", ")} verletzt` : undefined,
+      });
+    }
+    
     res.status(500).json({
       error: "Fehler beim Aktualisieren des Bauern",
       detail: String(err.message || err),
