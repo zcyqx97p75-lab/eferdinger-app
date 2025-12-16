@@ -2113,9 +2113,17 @@ async function loadFarmerPackStatsWrapper(farmerId: number) {
     }
 
     try {
+      const token = localStorage.getItem("authToken");
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`${API_URL}/farmer-stock/inventory`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           farmerId: currentUser.farmerId,
           varietyId, // Sorte
@@ -2124,16 +2132,27 @@ async function loadFarmerPackStatsWrapper(farmerId: number) {
       });
 
       if (!res.ok) {
-        showMessage("Fehler bei Inventur");
+        const errorText = await res.text().catch(() => "");
+        let errorMessage = "Fehler bei Inventur";
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          errorMessage = errorText || errorMessage;
+        }
+        console.error("Inventur-Fehler:", res.status, errorMessage);
+        showMessage(`Fehler bei Inventur: ${errorMessage}`);
         return;
       }
 
       setInvQuantityKg("");
+      setInvVarietyId("");
       await loadFarmerStocksWrapper(currentUser.farmerId);
       showMessage("Inventur gespeichert");
     } catch (err) {
-      console.error(err);
-      showMessage("Fehler bei Inventur");
+      console.error("Inventur-Fehler:", err);
+      const errorMessage = err instanceof Error ? err.message : "Unbekannter Fehler";
+      showMessage(`Fehler bei Inventur: ${errorMessage}`);
     }
   }
 
