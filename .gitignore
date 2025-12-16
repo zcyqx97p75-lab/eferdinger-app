@@ -3,12 +3,14 @@ node_modules
 .env
 .env.local
 .env.*.local
+.env.backup
 
 /generated/prisma
 
 # Deployment credentials (sollten nicht committed werden)
 CREDENTIALS.md
 *.credentials
+open-prisma-studio.sh
 
 # Railway
 .railwayignore
@@ -20,3 +22,8 @@ CREDENTIALS.md
 # Build outputs (werden bei Bedarf neu gebaut)
 dist/
 frontend/dist/
+
+# Backup files (während Refactoring erstellt)
+*.backup*
+*.bak*
+*backup-*

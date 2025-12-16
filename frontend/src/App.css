@@ -148,6 +148,61 @@
   box-shadow: 0 1px 2px rgba(37, 99, 235, 0.3);
 }
 
+/* Sekundärer Action-Button in der Karte */
+.action-card .btn-action-secondary {
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  border: none;
+  border-radius: 0.75rem;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(107, 114, 128, 0.3);
+}
+
+.action-card .btn-action-secondary:hover {
+  background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+  box-shadow: 0 4px 8px rgba(107, 114, 128, 0.4);
+  transform: translateY(-1px);
+}
+
+.action-card .btn-action-secondary:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(107, 114, 128, 0.3);
+}
+
+/* Sub-Tab Navigation Buttons */
+.btn-subtab {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #475569;
+  color: #94a3b8;
+  cursor: pointer;
+  font-weight: 400;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  background: transparent;
+}
+
+.btn-subtab.active {
+  background: #3b82f6;
+  border: none;
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn-subtab:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: #3b82f6;
+  color: #cbd5e1;
+}
+
+.btn-subtab.active:hover {
+  background: #2563eb;
+}
+
 /* Responsive Anpassungen */
 @media (max-width: 480px) {
   .action-card {
@@ -447,6 +502,41 @@ body,
   gap: 0.5rem;
   flex-wrap: wrap;
   margin-bottom: 1rem;
+}
+
+/* Haupt-Tab Navigation Buttons */
+.app-nav button {
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid #475569;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  font-weight: 400;
+  font-size: 0.9375rem;
+  transition: all 0.2s;
+}
+
+.app-nav button:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: #3b82f6;
+  color: #cbd5e1;
+}
+
+.app-nav button[style*="fontWeight: 700"],
+.app-nav button.active {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+}
+
+.app-nav button[style*="fontWeight: 700"]:hover,
+.app-nav button.active:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  box-shadow: 0 4px 8px rgba(37, 99, 235, 0.4);
+  transform: translateY(-1px);
 }
 
 .app-main {
