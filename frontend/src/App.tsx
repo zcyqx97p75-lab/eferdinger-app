@@ -1740,9 +1740,16 @@ async function loadFarmerPackStatsWrapper(farmerId: number) {
       ? `Möchten Sie den Bauer "${farmerName}" wirklich ändern?`
       : `Möchten Sie den Bauer "${farmerName}" wirklich anlegen?`,
     confirmLabel: isEditing ? "Ja, ändern" : "Ja, anlegen",
-    onConfirm: async () => {
+      onConfirm: async () => {
+      console.log("🔄 Bestätigung erhalten - Starte Bauer speichern...", {
+        isEditing,
+        editingFarmerId,
+        farmerName,
+        farmerLoginEmail,
+      });
+      
       try {
-        await createOrUpdateFarmer(
+        const result = await createOrUpdateFarmer(
           {
             name: farmerName,
             street: farmerStreet,
@@ -1757,6 +1764,8 @@ async function loadFarmerPackStatsWrapper(farmerId: number) {
           editingFarmerId
         );
 
+        console.log("✅ Bauer erfolgreich gespeichert:", result);
+
         // Felder leeren
         setFarmerName("");
         setFarmerStreet("");
@@ -1769,11 +1778,19 @@ async function loadFarmerPackStatsWrapper(farmerId: number) {
         setFarmerFlatRateNote("");
         setEditingFarmerId(null);
 
+        console.log("🔄 Lade Bauern-Liste neu...");
         await loadFarmers();
+        console.log("✅ Bauern-Liste neu geladen");
+        
         showMessage(isEditing ? "Bauer geändert" : "Bauer gespeichert");
         setConfirmAction(null);
       } catch (err: any) {
-        console.error(err);
+        console.error("❌ Fehler beim Speichern des Bauern:", err);
+        console.error("Fehler-Details:", {
+          message: err.message,
+          stack: err.stack,
+          name: err.name,
+        });
         showMessage(err.message || (isEditing ? "Fehler beim Ändern des Bauern" : "Fehler beim Anlegen des Bauern"));
         setConfirmAction(null);
       }
