@@ -175,3 +175,4 @@ Es wird App.tsx zu einer klaren, wartbaren Orchestrierungs-Komponente machen. Di
 
 **Soll ich mit der Umsetzung beginnen?**
 
+

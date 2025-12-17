@@ -43,14 +43,6 @@ interface StammdatenTabProps {
   passwordResetError: string | null;
   handleResetUserPassword: (e: React.FormEvent) => Promise<void>;
   
-  // Passwort-Reset Farmer
-  selectedFarmerId: number | "";
-  setSelectedFarmerId: (value: number | "") => void;
-  newFarmerPassword: string;
-  setNewFarmerPassword: (value: string) => void;
-  farmerPasswordResetError: string | null;
-  handleResetFarmerPassword: (e: React.FormEvent) => Promise<void>;
-  
   // Planmengen
   planFarmerIdInput: number | "";
   setPlanFarmerIdInput: (value: number | "") => void;
@@ -200,12 +192,6 @@ export function StammdatenTab(props: StammdatenTabProps) {
     setNewUserPassword,
     passwordResetError,
     handleResetUserPassword,
-    selectedFarmerId,
-    setSelectedFarmerId,
-    newFarmerPassword,
-    setNewFarmerPassword,
-    farmerPasswordResetError,
-    handleResetFarmerPassword,
     planFarmerIdInput,
     setPlanFarmerIdInput,
     planCookingTypeInput,
@@ -396,13 +382,6 @@ export function StammdatenTab(props: StammdatenTabProps) {
                 >
                   🔑 User-Passwort
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setStammdatenFunction("farmerPasswort")}
-                  className={`btn-subtab ${stammdatenFunction === "farmerPasswort" ? "active" : ""}`}
-                >
-                  🔐 Bauern-Passwort
-                </button>
               </>
             )}
           </div>
@@ -531,55 +510,6 @@ export function StammdatenTab(props: StammdatenTabProps) {
         </ActionCard>
           )}
 
-          {/* Bauern-Passwort zurücksetzen */}
-          {isEgAdmin && stammdatenFunction === "farmerPasswort" && (
-            <ActionCard icon="🔐" title="Bauern-Passwort zurücksetzen">
-          <p style={{ fontSize: "0.9375rem" }}>
-            Setzen Sie das Passwort für einen Bauern zurück (nur wenn Login aktiviert ist).
-          </p>
-          {farmerPasswordResetError && (
-            <div style={{
-              padding: "0.75rem",
-              background: "#fee2e2",
-              border: "1px solid #fca5a5",
-              borderRadius: "0.5rem",
-              color: "#991b1b",
-              marginBottom: "1rem",
-            }}>
-              {farmerPasswordResetError}
-            </div>
-          )}
-          <form onSubmit={handleResetFarmerPassword} noValidate>
-            <label>Bauer auswählen</label>
-            <select
-              value={selectedFarmerId}
-              onChange={(e) => setSelectedFarmerId(e.target.value ? Number(e.target.value) : "")}
-              required
-              onFocus={openSelectOnFocus}
-            >
-              <option value="">– Bauer wählen –</option>
-              {farmers.filter(f => f.loginEmail).map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name} ({f.loginEmail})
-                </option>
-              ))}
-            </select>
-
-            <label>Neues Passwort</label>
-            <input
-              type="password"
-              value={newFarmerPassword}
-              onChange={(e) => setNewFarmerPassword(e.target.value)}
-              placeholder="Neues Passwort eingeben"
-              required
-            />
-
-            <button type="submit" className="btn-action-primary">
-              🔑 Passwort zurücksetzen
-            </button>
-          </form>
-        </ActionCard>
-          )}
         </>
       )}
 

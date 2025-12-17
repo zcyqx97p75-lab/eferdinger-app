@@ -472,3 +472,4 @@ export const VerkaufTab: React.FC<VerkaufTabProps> = ({
   );
 };
 
+

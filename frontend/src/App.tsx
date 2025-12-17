@@ -89,7 +89,6 @@ import {
 } from "./services";
 import {
   createOrUpdateFarmer,
-  resetFarmerPassword,
   createOrUpdateProduct,
   createOrUpdateCustomer,
   createOrUpdatePrice,
@@ -764,9 +763,6 @@ export default function App() {
   const [selectedUserId, setSelectedUserId] = useState<number | "">("");
   const [newUserPassword, setNewUserPassword] = useState("");
   const [passwordResetError, setPasswordResetError] = useState<string | null>(null);
-  const [selectedFarmerId, setSelectedFarmerId] = useState<number | "">("");
-  const [newFarmerPassword, setNewFarmerPassword] = useState("");
-  const [farmerPasswordResetError, setFarmerPasswordResetError] = useState<string | null>(null);
 
   const [productName, setProductName] = useState("");
   const [productCookingType, setProductCookingType] = useState<CookingType>("FESTKOCHEND");
@@ -1273,39 +1269,6 @@ export default function App() {
     });
   }
 
-  async function handleResetFarmerPassword(e: React.FormEvent) {
-    e.preventDefault();
-    setFarmerPasswordResetError(null);
-
-    if (!selectedFarmerId || !newFarmerPassword.trim()) {
-      setFarmerPasswordResetError("Bitte wählen Sie einen Bauern und geben Sie ein neues Passwort ein");
-      return;
-    }
-
-    const farmer = farmers.find((f: Farmer) => f.id === selectedFarmerId);
-
-    setConfirmAction({
-      title: "Passwort zurücksetzen?",
-      message: `Möchten Sie das Passwort für Bauer "${farmer?.name || ""}" wirklich zurücksetzen?`,
-      confirmLabel: "Ja, zurücksetzen",
-      cancelLabel: "Nein, abbrechen",
-      onConfirm: async () => {
-        setConfirmAction(null);
-        try {
-          await resetFarmerPassword(selectedFarmerId, newFarmerPassword);
-
-          // Erfolg: Formular leeren
-          setSelectedFarmerId("");
-          setNewFarmerPassword("");
-          setFarmerPasswordResetError(null);
-          showMessage("Passwort wurde erfolgreich zurückgesetzt");
-        } catch (err: any) {
-          console.error(err);
-          setFarmerPasswordResetError(err.message || "Verbindung zum Server fehlgeschlagen");
-        }
-      },
-    });
-  }
 
   // loadFarmers ausgelagert nach src/hooks/useFarmers.ts
 
@@ -1610,7 +1573,7 @@ async function loadFarmerPackStatsWrapper(farmerId: number) {
     loadCustomers().catch(console.error);
     loadVarieties().catch(console.error);
     loadPrices().catch(console.error);
-    loadQualityPrices().catch(console.error);
+    loadQualityPricesWrapper().catch(console.error);
     loadTaxRates().catch(console.error);
   }, []);
 
@@ -4382,12 +4345,6 @@ async function handleSavePlanmenge(e: React.FormEvent) {
                 setNewUserPassword={setNewUserPassword}
                 passwordResetError={passwordResetError}
                 handleResetUserPassword={handleResetUserPassword}
-                selectedFarmerId={selectedFarmerId}
-                setSelectedFarmerId={setSelectedFarmerId}
-                newFarmerPassword={newFarmerPassword}
-                setNewFarmerPassword={setNewFarmerPassword}
-                farmerPasswordResetError={farmerPasswordResetError}
-                handleResetFarmerPassword={handleResetFarmerPassword}
                 planFarmerIdInput={planFarmerIdInput}
                 setPlanFarmerIdInput={setPlanFarmerIdInput}
                 planCookingTypeInput={planCookingTypeInput}
@@ -4489,7 +4446,7 @@ async function handleSavePlanmenge(e: React.FormEvent) {
                 setQpTaxRateId={setQpTaxRateId}
                 editingQualityPriceId={editingQualityPriceId}
                 setEditingQualityPriceId={setEditingQualityPriceId}
-                loadQualityPrices={loadQualityPrices}
+                loadQualityPrices={loadQualityPricesWrapper}
                 taxRates={taxRates}
                 showMessage={showMessage}
                 setConfirmAction={setConfirmAction}

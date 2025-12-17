@@ -111,3 +111,4 @@ frontend/src/
 - ✅ Backup-Dateien sollten in `.gitignore` aufgenommen werden
 - ⚠️ Alte Backup-Dateien sollten vor dem Push entfernt werden
 
+

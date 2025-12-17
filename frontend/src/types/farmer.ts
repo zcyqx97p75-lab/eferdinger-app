@@ -53,3 +53,4 @@ export type FarmerPackStat = {
   stockPercent: number | null; // NEU
 };
 
+

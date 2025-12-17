@@ -586,7 +586,7 @@ export const FarmerStatsPlanningTab: React.FC<FarmerStatsPlanningTabProps> = ({
                       ? "-"
                       : formatPercent(r.fulfillmentPercent)}
                   </td>
-                  <td>{r.saldoKg >= 0 ? "+" : ""}{formatKg(r.saldoKg)}</td>
+                  <td style={{ textAlign: "left" }}>{r.saldoKg >= 0 ? "+" : ""}{formatKg(r.saldoKg)}</td>
                 </tr>
               ))}
             </tbody>

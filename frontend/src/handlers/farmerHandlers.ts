@@ -54,34 +54,3 @@ export async function createOrUpdateFarmer(
   return result;
 }
 
-export async function resetFarmerPassword(
-  farmerId: number,
-  newPassword: string
-): Promise<void> {
-  const token = localStorage.getItem("authToken");
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-  };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  const res = await fetch(`${API_URL}/farmers/${farmerId}/reset-password`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ newPassword: newPassword.trim() }),
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text().catch(() => "");
-    let errorMessage = "Fehler beim Zurücksetzen des Passworts";
-    try {
-      const errorData = JSON.parse(errorText);
-      errorMessage = errorData.error || errorMessage;
-    } catch {
-      errorMessage = errorText || errorMessage;
-    }
-    throw new Error(errorMessage);
-  }
-}
-

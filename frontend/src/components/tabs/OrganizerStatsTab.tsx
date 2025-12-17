@@ -469,7 +469,7 @@ export function OrganizerStatsTab({
                       fontWeight: r.saldoKg !== 0 ? 600 : 400,
                       padding: "0.5rem",
                       borderRadius: "0.25rem",
-                      textAlign: "right",
+                      textAlign: "left",
                     }}
                   >
                     {r.saldoKg >= 0 ? "+" : ""}{formatKg(r.saldoKg)}

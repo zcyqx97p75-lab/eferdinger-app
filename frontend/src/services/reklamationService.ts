@@ -41,3 +41,4 @@ export async function loadReklRelevantFarmers(saleId: number): Promise<Farmer[]>
   }
 }
 
+

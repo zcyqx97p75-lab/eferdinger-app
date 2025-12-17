@@ -20,3 +20,4 @@ export type ConfirmAction = {
 // Tab-Typen
 export type Tab = "stamm" | "farmerStock" | "packstation" | "stats" | "verkauf" | "reklamation" | "statistik" | "abrechnungen" | "lagerInventur" | "kalkulationen";
 
+
