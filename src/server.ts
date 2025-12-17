@@ -3049,7 +3049,8 @@ async function getFarmerStatement(
         vatRatePercentForDiscount = 13;
       } else {
         // Steuersatz aus dem Produkt holen
-        vatRatePercentForDiscount = Number(product?.taxRate?.ratePercent ?? 0);
+        const productWithTax = product as any;
+        vatRatePercentForDiscount = Number(productWithTax?.taxRate?.ratePercent ?? 0);
       }
       
       lines.push({
