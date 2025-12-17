@@ -62,6 +62,30 @@ async function findOrCreateAddress(data: {
   });
 }
 
+// ▶ Synchronisiere User-ID-Sequenz (behebt Probleme nach manuellen SQL-Inserts)
+async function syncUserSequence() {
+  try {
+    const maxUser = await prisma.user.findFirst({
+      orderBy: { id: "desc" },
+      select: { id: true },
+    });
+
+    const maxId = maxUser?.id || 0;
+    const nextId = maxId + 1;
+
+    // Setze die Sequenz auf den höchsten Wert + 1
+    await prisma.$executeRawUnsafe(
+      `SELECT setval('"User_id_seq"', $1, true)`,
+      nextId
+    );
+
+    console.log(`✅ User-ID-Sequenz synchronisiert (nächste ID: ${nextId})`);
+  } catch (error: any) {
+    // Wenn die Sequenz nicht existiert oder ein anderer Fehler auftritt, logge es, aber breche nicht ab
+    console.warn("⚠️ Sequenz-Synchronisierung übersprungen:", error.message);
+  }
+}
+
 // ▶ Initialisierung: Standard-Admin & Standard-Packstelle
 async function ensureInitialData() {
   // Admin-User
@@ -8066,6 +8090,7 @@ process.on("SIGINT", async () => {
     // In Production: Initial Data und Tax Rates nur wenn nötig
     // (kann beim ersten Start länger dauern)
     try {
+      await syncUserSequence(); // Synchronisiere User-ID-Sequenz zuerst
       await ensureInitialData();
       await ensureTaxRates();
     } catch (initError: any) {

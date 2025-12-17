@@ -11,7 +11,8 @@
     "prisma:migrate:fix": "npx prisma migrate resolve --rolled-back 20251112_variety_product_backrels || npx prisma migrate resolve --applied 20251112_variety_product_backrels || echo 'Migration fix skipped'",
     "prisma:migrate:deploy:safe": "npm run prisma:migrate:fix && npm run prisma:migrate:deploy",
     "setup-network": "bash scripts/setup-network.sh",
-    "link-farmers": "ts-node scripts/link-farmers-to-users.ts"
+    "link-farmers": "ts-node scripts/link-farmers-to-users.ts",
+    "fix-user-sequence": "ts-node scripts/fix-user-sequence.ts"
   },
   "keywords": [],
   "author": "",
