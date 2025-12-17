@@ -819,6 +819,8 @@ app.get("/api/admin/users", async (_req, res) => {
 });
 
 app.post("/api/farmers", async (req, res) => {
+  console.log("📥 POST /api/farmers - Request Body:", JSON.stringify(req.body, null, 2));
+  
   const {
     name,
     street,
@@ -836,6 +838,9 @@ app.post("/api/farmers", async (req, res) => {
   
   // Verwende ggnNumber falls vorhanden, sonst ggn
   const ggnValue = ggnNumber ?? ggn;
+  
+  // Konvertiere leeren String zu null für flatRateNote
+  const flatRateNoteValue = (flatRateNote && flatRateNote.trim()) ? flatRateNote.trim() : null;
 
   try {
     // Prüfe, ob E-Mail bereits existiert (wenn angegeben)
@@ -864,6 +869,16 @@ app.post("/api/farmers", async (req, res) => {
       hashedPassword = await bcrypt.hash(loginPassword.trim(), 10);
     }
 
+    console.log("📝 Erstelle Farmer mit Daten:", {
+      name,
+      ggn: ggnValue ?? null,
+      email: loginEmail ?? null,
+      hasPassword: !!hashedPassword,
+      addressId: addr?.id ?? null,
+      isFlatRate: !!isFlatRate,
+      flatRateNote: flatRateNoteValue,
+    });
+    
     const farmer = await (prisma as any).farmer.create({
       data: {
         name,
@@ -872,10 +887,12 @@ app.post("/api/farmers", async (req, res) => {
         passwordHash: hashedPassword,
         addressId: addr?.id ?? null,
         isFlatRate: !!isFlatRate,
-        flatRateNote: flatRateNote ?? null,
+        flatRateNote: flatRateNoteValue,
       },
       include: { address: true },
     });
+    
+    console.log("✅ Farmer erfolgreich erstellt:", { id: farmer.id, name: farmer.name });
 
     // Lege User an, wenn E-Mail vorhanden ist
     if (loginEmail) {
@@ -2771,9 +2788,8 @@ async function getFarmerStatement(
   let totalRetourKg = 0;
   // WICHTIG: Für pauschalierte Landwirte wird immer 13% MWSt verwendet,
   // unabhängig von der eingestellten TaxRate des Produkts.
-  // Für nicht-pauschalierte Landwirte: 0% (landwirtschaftliche Erzeugnisse sind steuerfrei).
+  // Für nicht-pauschalierte Landwirte: Steuersatz aus dem jeweiligen Produkt.
   // Ausnahme: Abpackkosten sind eine Dienstleistung und unterliegen immer 20% MWSt.
-  const vatRateForFarmer = isFlatRate ? 13 : 0;
 
   // 3. PackagingRun laden (Verpackungsbuchungen als Basis)
   const packagingRuns = await prisma.packagingRun.findMany({
@@ -2786,7 +2802,9 @@ async function getFarmerStatement(
     },
     include: {
       variety: true,
-      product: true,
+      product: {
+        include: { taxRate: true } as any,
+      },
     },
     orderBy: { date: "asc" },
   });
@@ -2795,6 +2813,7 @@ async function getFarmerStatement(
   for (const run of packagingRuns) {
     const finishedKg = Number(run.finishedKg);
     const variety = run.variety;
+    const product = run.product as any;
     
     // Qualität aus Variety
     const quality = variety?.quality as "Q1" | "Q2" | "UEBERGROESSE" | null;
@@ -2806,6 +2825,17 @@ async function getFarmerStatement(
       if (priceInfo) {
         pricePerKg = priceInfo.pricePerKg;
       }
+    }
+
+    // Steuersatz ermitteln:
+    // - Pauschalierter Betrieb: immer 13%
+    // - Normaler Betrieb: Steuersatz aus dem Produkt (falls vorhanden, sonst 0%)
+    let vatRatePercent = 0;
+    if (isFlatRate) {
+      vatRatePercent = 13;
+    } else {
+      // Steuersatz aus dem Produkt holen
+      vatRatePercent = Number(product?.taxRate?.ratePercent ?? 0);
     }
 
     // Verpackungsbuchung als Lieferung verbuchen
@@ -2822,8 +2852,8 @@ async function getFarmerStatement(
       quantityKg: finishedKg,
       unitPrice: pricePerKg,
       amount,
-      vatRatePercent: vatRateForFarmer,
-      vatAmount: amount * (vatRateForFarmer / 100),
+      vatRatePercent: vatRatePercent,
+      vatAmount: amount * (vatRatePercent / 100),
       referenceId: run.id,
       referenceType: undefined, // PackagingRun wird nicht als referenceType unterstützt
     });
@@ -2842,7 +2872,9 @@ async function getFarmerStatement(
       customerSale: {
         include: {
           customer: true,
-          product: true,
+          product: {
+            include: { taxRate: true } as any,
+          },
         },
       },
     },
@@ -2961,6 +2993,17 @@ async function getFarmerStatement(
           totalRetourKg += affectedKg;
           const amount = -affectedKg * pricePerKg; // Negativ (Abzug)
 
+          // Steuersatz ermitteln:
+          // - Pauschalierter Betrieb: immer 13%
+          // - Normaler Betrieb: Steuersatz aus dem Produkt (falls vorhanden, sonst 0%)
+          let vatRatePercentForComplaint = 0;
+          if (isFlatRate) {
+            vatRatePercentForComplaint = 13;
+          } else {
+            // Steuersatz aus dem Produkt holen
+            vatRatePercentForComplaint = Number(product?.taxRate?.ratePercent ?? 0);
+          }
+
           lines.push({
             date: complaint.createdAt,
             lineType: "RETOUR_MENGE",
@@ -2971,8 +3014,8 @@ async function getFarmerStatement(
             quantityKg: -affectedKg, // negativ darstellen
             unitPrice: pricePerKg,
             amount,
-            vatRatePercent: vatRateForFarmer,
-            vatAmount: amount * (vatRateForFarmer / 100),
+            vatRatePercent: vatRatePercentForComplaint,
+            vatAmount: amount * (vatRatePercentForComplaint / 100),
             referenceId: complaint.id,
             referenceType: "CustomerSaleComplaint",
           });
