@@ -12,7 +12,8 @@
     "prisma:migrate:deploy:safe": "npm run prisma:migrate:fix && npm run prisma:migrate:deploy",
     "setup-network": "bash scripts/setup-network.sh",
     "link-farmers": "ts-node scripts/link-farmers-to-users.ts",
-    "fix-user-sequence": "ts-node scripts/fix-user-sequence.ts"
+    "fix-user-sequence": "ts-node scripts/fix-user-sequence.ts",
+    "fix-all-sequences": "ts-node scripts/fix-all-sequences.ts"
   },
   "keywords": [],
   "author": "",
