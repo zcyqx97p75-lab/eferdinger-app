@@ -894,9 +894,19 @@ app.post("/api/farmers", async (req, res) => {
     });
 
     // Hashe das Passwort, falls vorhanden
+    console.log("🔐 Passwort-Info:", {
+      loginPassword: loginPassword ? `${loginPassword.substring(0, 2)}...` : "kein Passwort",
+      loginPasswordLength: loginPassword?.length || 0,
+      loginPasswordTrimmed: loginPassword?.trim() || "",
+      hasLoginPassword: !!loginPassword,
+    });
+    
     let hashedPassword: string | null = null;
-    if (loginPassword) {
+    if (loginPassword && loginPassword.trim()) {
       hashedPassword = await bcrypt.hash(loginPassword.trim(), 10);
+      console.log("✅ Passwort wurde gehasht");
+    } else {
+      console.log("⚠️ Kein Passwort angegeben - wird Standard-Passwort '12345' verwendet");
     }
 
     console.log("📝 Erstelle Farmer mit Daten:", {
@@ -958,8 +968,10 @@ app.post("/api/farmers", async (req, res) => {
           console.log(`✅ User ${existingUser.id} wurde aktualisiert und mit Farmer ${farmer.id} verknüpft`);
         } else {
           // Neuer User - erstelle ihn
+          // Verwende das gehashte Passwort, falls vorhanden, sonst Standard-Passwort
           const userPassword = hashedPassword || await bcrypt.hash("12345", 10);
           console.log(`🆕 Erstelle neuen User mit E-Mail: "${trimmedEmail}"`);
+          console.log(`🔐 User-Passwort: ${hashedPassword ? "Eingegebenes Passwort (gehasht)" : "Standard-Passwort '12345' (gehasht)"}`);
           const newUser = await prisma.user.create({
             data: {
               email: trimmedEmail,

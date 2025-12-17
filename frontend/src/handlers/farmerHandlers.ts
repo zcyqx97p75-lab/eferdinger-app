@@ -26,7 +26,16 @@ export async function createOrUpdateFarmer(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  console.log("📤 Bauer speichern:", { url, method, body: farmerData, hasToken: !!token });
+  console.log("📤 Bauer speichern:", { 
+    url, 
+    method, 
+    body: {
+      ...farmerData,
+      loginPassword: farmerData.loginPassword ? `${farmerData.loginPassword.substring(0, 2)}...` : "kein Passwort",
+    },
+    hasToken: !!token,
+    loginPasswordLength: farmerData.loginPassword?.length || 0,
+  });
 
   const res = await fetch(url, {
     method,
