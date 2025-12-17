@@ -1126,17 +1126,36 @@ app.put("/api/farmers/:id", async (req, res) => {
       if (existingUser) {
         // User existiert - aktualisiere ihn
         console.log(`🔄 User existiert bereits (ID: ${existingUser.id}), aktualisiere...`);
-        await prisma.user.update({
-          where: { email: trimmedEmail },
-          data: {
-            farmerId: farmer.id,
-            name: farmer.name,
-            role: "FARMER",
-            // Aktualisiere Passwort nur, wenn ein neues angegeben wurde
-            ...(hasNewPassword && hashedPassword ? { password: hashedPassword } : {}),
-          },
+        
+        // Bereite Update-Daten vor
+        const updateData: any = {
+          farmerId: farmer.id,
+          name: farmer.name,
+          role: "FARMER",
+        };
+        
+        // Aktualisiere Passwort nur, wenn ein neues angegeben wurde
+        if (hasNewPassword && hashedPassword) {
+          updateData.password = hashedPassword;
+          console.log(`🔐 Passwort wird aktualisiert: ${hashedPassword.substring(0, 20)}...`);
+        } else {
+          console.log(`ℹ️ Passwort wird nicht aktualisiert (hasNewPassword: ${hasNewPassword}, hashedPassword: ${hashedPassword ? "vorhanden" : "null"})`);
+        }
+        
+        console.log("📝 Update-Daten:", {
+          farmerId: updateData.farmerId,
+          name: updateData.name,
+          role: updateData.role,
+          hasPassword: !!updateData.password,
         });
+        
+        const updatedUser = await prisma.user.update({
+          where: { email: trimmedEmail },
+          data: updateData,
+        });
+        
         console.log(`✅ User ${existingUser.id} wurde aktualisiert${hasNewPassword ? " (mit neuem Passwort)" : " (Passwort unverändert)"}`);
+        console.log(`🔍 Prüfe gespeichertes Passwort: ${updatedUser.password.substring(0, 20)}...`);
       } else {
         // Neuer User - erstelle ihn
         const userPassword = hashedPassword || await bcrypt.hash("12345", 10);
