@@ -826,12 +826,16 @@ app.post("/api/farmers", async (req, res) => {
     city,
     country,
     ggn,
+    ggnNumber, // Frontend sendet ggnNumber
     loginEmail,
     loginPassword,
     isFlatRate = false,
     flatRateNote = null,
   } = req.body;
   if (!name) return res.status(400).json({ error: "Name erforderlich" });
+  
+  // Verwende ggnNumber falls vorhanden, sonst ggn
+  const ggnValue = ggnNumber ?? ggn;
 
   try {
     // Prüfe, ob E-Mail bereits existiert (wenn angegeben)
@@ -863,7 +867,7 @@ app.post("/api/farmers", async (req, res) => {
     const farmer = await (prisma as any).farmer.create({
       data: {
         name,
-        ggn: ggn ?? null,
+        ggn: ggnValue ?? null,
         email: loginEmail ?? null,
         passwordHash: hashedPassword,
         addressId: addr?.id ?? null,
@@ -928,6 +932,7 @@ app.put("/api/farmers/:id", async (req, res) => {
     city,
     country,
     ggn,
+    ggnNumber, // Frontend sendet ggnNumber
     loginEmail,
     loginPassword,
     isFlatRate = false,
@@ -935,6 +940,9 @@ app.put("/api/farmers/:id", async (req, res) => {
   } = req.body;
   
   if (!name) return res.status(400).json({ error: "Name erforderlich" });
+  
+  // Verwende ggnNumber falls vorhanden, sonst ggn
+  const ggnValue = ggnNumber ?? ggn;
 
   try {
     // Hole den bestehenden Bauern
@@ -978,7 +986,7 @@ app.put("/api/farmers/:id", async (req, res) => {
       where: { id: Number(id) },
       data: {
         name,
-        ggn: ggn ?? null,
+        ggn: ggnValue ?? null,
         email: loginEmail ?? null,
         passwordHash: hashedPassword,
         addressId: addr?.id ?? null,
