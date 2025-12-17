@@ -3034,10 +3034,21 @@ async function getFarmerStatement(
       // Berechne den Abzugsbetrag basierend auf Verkaufspreis
       // affectedQuantity ist in Einheiten (Colli), saleUnitPrice ist je Colli
       // Wir müssen zuerst Colli berechnen: affectedQuantity / unitsPerColli
-      const product = sale?.product;
+      const product = sale?.product as any;
       const unitsPerColli = product?.unitsPerColli ?? 1;
       const affectedColli = unitsPerColli > 0 ? affectedQuantity / unitsPerColli : affectedQuantity;
       const discountAmount = affectedColli * saleUnitPrice * (discountPercent / 100);
+      
+      // Steuersatz ermitteln:
+      // - Pauschalierter Betrieb: immer 13%
+      // - Normaler Betrieb: Steuersatz aus dem Produkt (falls vorhanden, sonst 0%)
+      let vatRatePercentForDiscount = 0;
+      if (isFlatRate) {
+        vatRatePercentForDiscount = 13;
+      } else {
+        // Steuersatz aus dem Produkt holen
+        vatRatePercentForDiscount = Number(product?.taxRate?.ratePercent ?? 0);
+      }
       
       lines.push({
         date: complaint.createdAt,
@@ -3049,8 +3060,8 @@ async function getFarmerStatement(
         quantityUnits: affectedQuantity,
         unitPrice: saleUnitPrice, // Verkaufspreis je Colli
         amount: -Math.abs(discountAmount), // Negativ (Abzug)
-        vatRatePercent: vatRateForFarmer,
-        vatAmount: -Math.abs(discountAmount) * (vatRateForFarmer / 100),
+        vatRatePercent: vatRatePercentForDiscount,
+        vatAmount: -Math.abs(discountAmount) * (vatRatePercentForDiscount / 100),
         discountPercent: discountPercent,
         referenceId: complaint.id,
         referenceType: "CustomerSaleComplaint",
