@@ -13,7 +13,8 @@
     "setup-network": "bash scripts/setup-network.sh",
     "link-farmers": "ts-node scripts/link-farmers-to-users.ts",
     "fix-user-sequence": "ts-node scripts/fix-user-sequence.ts",
-    "fix-all-sequences": "ts-node scripts/fix-all-sequences.ts"
+    "fix-all-sequences": "ts-node scripts/fix-all-sequences.ts",
+    "export-local-db": "ts-node scripts/export-local-db.ts"
   },
   "keywords": [],
   "author": "",

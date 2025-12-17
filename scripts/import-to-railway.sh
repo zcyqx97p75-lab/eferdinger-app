@@ -30,7 +30,9 @@ fi
 
 echo ""
 echo "🗑️  Lösche alle Tabellen in Railway-Datenbank..."
-psql "$RAILWAY_DB_URL" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO postgres; GRANT ALL ON SCHEMA public TO public;"
+# Entferne Query-Parameter, die Probleme verursachen könnten
+CLEAN_RAILWAY_URL=$(echo "$RAILWAY_DB_URL" | sed 's/?.*$//')
+psql "$CLEAN_RAILWAY_URL" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO postgres; GRANT ALL ON SCHEMA public TO public;"
 
 if [ $? -ne 0 ]; then
   echo "❌ Fehler beim Löschen der Tabellen"
@@ -39,7 +41,9 @@ fi
 
 echo ""
 echo "📥 Importiere lokale Datenbank nach Railway..."
-psql "$RAILWAY_DB_URL" < local-db-export.sql
+# Entferne Query-Parameter, die Probleme verursachen könnten
+CLEAN_RAILWAY_URL=$(echo "$RAILWAY_DB_URL" | sed 's/?.*$//')
+psql "$CLEAN_RAILWAY_URL" < local-db-export.sql
 
 if [ $? -eq 0 ]; then
   echo "✅ Datenbank erfolgreich importiert!"
