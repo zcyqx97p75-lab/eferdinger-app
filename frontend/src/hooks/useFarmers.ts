@@ -14,7 +14,12 @@ export function useFarmers() {
         return;
       }
       const data = await res.json();
-      setFarmers(Array.isArray(data) ? data : []);
+      // Mappe 'email' zu 'loginEmail' für Frontend-Kompatibilität
+      const mappedData = data.map((farmer: any) => ({
+        ...farmer,
+        loginEmail: farmer.email || farmer.loginEmail || null,
+      }));
+      setFarmers(Array.isArray(mappedData) ? mappedData : []);
     } catch (err) {
       console.error("Error loading farmers:", err);
       setFarmers([]);
