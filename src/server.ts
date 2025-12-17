@@ -2835,7 +2835,8 @@ async function getFarmerStatement(
       vatRatePercent = 13;
     } else {
       // Steuersatz aus dem Produkt holen
-      vatRatePercent = Number(product?.taxRate?.ratePercent ?? 0);
+      const productWithTax = product as any;
+      vatRatePercent = Number(productWithTax?.taxRate?.ratePercent ?? 0);
     }
 
     // Verpackungsbuchung als Lieferung verbuchen
@@ -3001,15 +3002,16 @@ async function getFarmerStatement(
             vatRatePercentForComplaint = 13;
           } else {
             // Steuersatz aus dem Produkt holen
-            vatRatePercentForComplaint = Number(product?.taxRate?.ratePercent ?? 0);
+            const productWithTax = product as any;
+            vatRatePercentForComplaint = Number(productWithTax?.taxRate?.ratePercent ?? 0);
           }
 
           lines.push({
             date: complaint.createdAt,
             lineType: "RETOUR_MENGE",
-            description: `Retour ${packagingRun.varietyNameSnapshot ?? variety?.name ?? "Sorte"} / ${packagingRun.productNameSnapshot ?? product.name}`,
+            description: `Retour ${packagingRun.varietyNameSnapshot ?? variety?.name ?? "Sorte"} / ${packagingRun.productNameSnapshot ?? (product as any)?.name ?? "Produkt"}`,
             variety: packagingRun.varietyNameSnapshot ?? variety?.name ?? undefined,
-            product: packagingRun.productNameSnapshot ?? product.name ?? undefined,
+            product: packagingRun.productNameSnapshot ?? (product as any)?.name ?? undefined,
             quality: quality ?? undefined,
             quantityKg: -affectedKg, // negativ darstellen
             unitPrice: pricePerKg,
