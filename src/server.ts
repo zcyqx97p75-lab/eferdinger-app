@@ -894,16 +894,19 @@ app.post("/api/farmers", async (req, res) => {
     });
 
     // Hashe das Passwort, falls vorhanden
+    // Wichtig: Leere Strings werden als "kein Passwort" behandelt
+    const trimmedPassword = loginPassword?.trim() || "";
+    const hasPassword = trimmedPassword.length > 0;
+    
     console.log("🔐 Passwort-Info:", {
-      loginPassword: loginPassword ? `${loginPassword.substring(0, 2)}...` : "kein Passwort",
-      loginPasswordLength: loginPassword?.length || 0,
-      loginPasswordTrimmed: loginPassword?.trim() || "",
-      hasLoginPassword: !!loginPassword,
+      loginPassword: hasPassword ? `${trimmedPassword.substring(0, 2)}...` : "kein Passwort",
+      loginPasswordLength: trimmedPassword.length,
+      hasLoginPassword: hasPassword,
     });
     
     let hashedPassword: string | null = null;
-    if (loginPassword && loginPassword.trim()) {
-      hashedPassword = await bcrypt.hash(loginPassword.trim(), 10);
+    if (hasPassword) {
+      hashedPassword = await bcrypt.hash(trimmedPassword, 10);
       console.log("✅ Passwort wurde gehasht");
     } else {
       console.log("⚠️ Kein Passwort angegeben - wird Standard-Passwort '12345' verwendet");
@@ -962,7 +965,7 @@ app.post("/api/farmers", async (req, res) => {
               name: farmer.name,
               role: "FARMER", // Stelle sicher, dass die Rolle FARMER ist
               // Aktualisiere Passwort nur, wenn ein neues angegeben wurde
-              ...(loginPassword && { password: hashedPassword || await bcrypt.hash("12345", 10) }),
+              ...(hasPassword && hashedPassword ? { password: hashedPassword } : {}),
             },
           });
           console.log(`✅ User ${existingUser.id} wurde aktualisiert und mit Farmer ${farmer.id} verknüpft`);
@@ -1077,9 +1080,23 @@ app.put("/api/farmers/:id", async (req, res) => {
     }
 
     // Hashe das Passwort, falls ein neues angegeben wurde
+    // Wichtig: Leere Strings werden als "kein Passwort" behandelt
+    const trimmedPassword = loginPassword?.trim() || "";
+    const hasNewPassword = trimmedPassword.length > 0;
+    
+    console.log("🔐 Passwort-Info (UPDATE):", {
+      loginPassword: hasNewPassword ? `${trimmedPassword.substring(0, 2)}...` : "kein neues Passwort",
+      loginPasswordLength: trimmedPassword.length,
+      hasNewPassword: hasNewPassword,
+      existingPasswordHash: existingFarmer.passwordHash ? "vorhanden" : "kein Passwort",
+    });
+    
     let hashedPassword: string | null = existingFarmer.passwordHash;
-    if (loginPassword) {
-      hashedPassword = await bcrypt.hash(loginPassword.trim(), 10);
+    if (hasNewPassword) {
+      hashedPassword = await bcrypt.hash(trimmedPassword, 10);
+      console.log("✅ Neues Passwort wurde gehasht");
+    } else {
+      console.log("ℹ️ Kein neues Passwort angegeben - behalte bestehendes Passwort");
     }
 
     // Aktualisiere den Bauern
@@ -1099,27 +1116,42 @@ app.put("/api/farmers/:id", async (req, res) => {
 
     // Aktualisiere oder erstelle User, falls E-Mail vorhanden ist
     if (loginEmail) {
-      // Wenn kein Passwort angegeben wurde, verwende das bestehende oder setze Standard-Passwort
-      const userPassword = hashedPassword || (existingFarmer.email ? undefined : await bcrypt.hash("12345", 10));
+      const trimmedEmail = loginEmail.trim();
       
-      await prisma.user.upsert({
-        where: { email: loginEmail },
-        update: {
-          farmerId: farmer.id,
-          name: farmer.name,
-          // Aktualisiere Passwort nur, wenn ein neues angegeben wurde
-          ...(loginPassword && userPassword && { password: userPassword }),
-        },
-        create: {
-          email: loginEmail,
-          password: userPassword || await bcrypt.hash("12345", 10),
-          name: farmer.name,
-          role: "FARMER",
-          farmerId: farmer.id,
-        },
+      // Prüfe, ob User bereits existiert
+      const existingUser = await prisma.user.findUnique({
+        where: { email: trimmedEmail },
       });
       
-      console.log(`✅ User für Farmer ${farmer.id} (${loginEmail}) wurde aktualisiert/angelegt`);
+      if (existingUser) {
+        // User existiert - aktualisiere ihn
+        console.log(`🔄 User existiert bereits (ID: ${existingUser.id}), aktualisiere...`);
+        await prisma.user.update({
+          where: { email: trimmedEmail },
+          data: {
+            farmerId: farmer.id,
+            name: farmer.name,
+            role: "FARMER",
+            // Aktualisiere Passwort nur, wenn ein neues angegeben wurde
+            ...(hasNewPassword && hashedPassword ? { password: hashedPassword } : {}),
+          },
+        });
+        console.log(`✅ User ${existingUser.id} wurde aktualisiert${hasNewPassword ? " (mit neuem Passwort)" : " (Passwort unverändert)"}`);
+      } else {
+        // Neuer User - erstelle ihn
+        const userPassword = hashedPassword || await bcrypt.hash("12345", 10);
+        console.log(`🆕 Erstelle neuen User mit E-Mail: "${trimmedEmail}"`);
+        await prisma.user.create({
+          data: {
+            email: trimmedEmail,
+            password: userPassword,
+            name: farmer.name,
+            role: "FARMER",
+            farmerId: farmer.id,
+          },
+        });
+        console.log(`✅ Neuer User für Farmer ${farmer.id} (${trimmedEmail}) wurde angelegt`);
+      }
     } else if (existingFarmer.email) {
       // Wenn E-Mail entfernt wurde, entferne auch die Verknüpfung zum User (aber lösche den User nicht)
       const user = await prisma.user.findUnique({
