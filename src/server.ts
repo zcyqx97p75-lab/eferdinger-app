@@ -921,20 +921,28 @@ app.post("/api/farmers", async (req, res) => {
 
     res.status(201).json(farmer);
   } catch (err: any) {
-    console.error("Fehler in POST /api/farmers:", err);
+    console.error("❌ Fehler in POST /api/farmers:", err);
+    console.error("Fehler-Code:", err.code);
+    console.error("Fehler-Message:", err.message);
+    console.error("Fehler-Meta:", JSON.stringify(err.meta, null, 2));
     
     // Prüfe auf Unique Constraint Fehler
     if (err.code === "P2002") {
       const field = err.meta?.target?.[0] || "Feld";
+      const errorMessage = `Ein Bauer mit diesem ${field} existiert bereits`;
+      console.error("❌ Unique Constraint Fehler:", errorMessage, "auf Feld:", field);
       return res.status(400).json({
-        error: `Ein Bauer mit diesem ${field} existiert bereits`,
+        error: errorMessage,
         detail: err.meta?.target ? `Unique constraint auf ${err.meta.target.join(", ")} verletzt` : undefined,
+        field: field,
+        code: err.code,
       });
     }
     
     res.status(500).json({
       error: "Fehler beim Anlegen des Bauern",
       detail: String(err.message || err),
+      code: err.code || "UNKNOWN",
     });
   }
 });
