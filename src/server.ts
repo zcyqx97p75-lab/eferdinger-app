@@ -820,6 +820,12 @@ app.get("/api/admin/users", async (_req, res) => {
 
 app.post("/api/farmers", async (req, res) => {
   console.log("📥 POST /api/farmers - Request Body:", JSON.stringify(req.body, null, 2));
+  console.log("📥 POST /api/farmers - loginEmail im Request:", {
+    loginEmail: req.body.loginEmail,
+    loginEmailType: typeof req.body.loginEmail,
+    loginEmailValue: JSON.stringify(req.body.loginEmail),
+    hasLoginEmail: !!req.body.loginEmail,
+  });
   
   const {
     name,
@@ -895,28 +901,62 @@ app.post("/api/farmers", async (req, res) => {
     console.log("✅ Farmer erfolgreich erstellt:", { id: farmer.id, name: farmer.name });
 
     // Lege User an, wenn E-Mail vorhanden ist
-    if (loginEmail) {
-      // Wenn kein Passwort angegeben wurde, setze ein Standard-Passwort (kann später geändert werden)
-      const userPassword = hashedPassword || await bcrypt.hash("12345", 10);
+    console.log("🔍 Prüfe loginEmail für User-Erstellung:", {
+      loginEmail: loginEmail,
+      loginEmailType: typeof loginEmail,
+      loginEmailLength: loginEmail?.length,
+      hasLoginEmail: !!loginEmail,
+    });
+    
+    if (loginEmail && loginEmail.trim()) {
+      const trimmedEmail = loginEmail.trim();
+      console.log(`📧 E-Mail vorhanden: "${trimmedEmail}" - Starte User-Erstellung...`);
       
-      await prisma.user.upsert({
-        where: { email: loginEmail },
-        update: { 
-          farmerId: farmer.id,
-          name: farmer.name,
-          // Aktualisiere Passwort nur, wenn ein neues angegeben wurde
-          ...(loginPassword && { password: userPassword }),
-        },
-        create: {
-          email: loginEmail,
-          password: userPassword,
-          name: farmer.name,
-          role: "FARMER",
-          farmerId: farmer.id,
-        },
-      });
-      
-      console.log(`✅ User für Farmer ${farmer.id} (${loginEmail}) wurde angelegt/aktualisiert`);
+      try {
+        // Prüfe, ob bereits ein User mit dieser E-Mail existiert
+        const existingUser = await prisma.user.findUnique({
+          where: { email: trimmedEmail },
+        });
+        
+        if (existingUser) {
+          // User existiert bereits - aktualisiere ihn
+          console.log(`🔄 User existiert bereits (ID: ${existingUser.id}, Rolle: ${existingUser.role}), aktualisiere...`);
+          await prisma.user.update({
+            where: { email: trimmedEmail },
+            data: { 
+              farmerId: farmer.id,
+              name: farmer.name,
+              role: "FARMER", // Stelle sicher, dass die Rolle FARMER ist
+              // Aktualisiere Passwort nur, wenn ein neues angegeben wurde
+              ...(loginPassword && { password: hashedPassword || await bcrypt.hash("12345", 10) }),
+            },
+          });
+          console.log(`✅ User ${existingUser.id} wurde aktualisiert und mit Farmer ${farmer.id} verknüpft`);
+        } else {
+          // Neuer User - erstelle ihn
+          const userPassword = hashedPassword || await bcrypt.hash("12345", 10);
+          console.log(`🆕 Erstelle neuen User mit E-Mail: "${trimmedEmail}"`);
+          const newUser = await prisma.user.create({
+            data: {
+              email: trimmedEmail,
+              password: userPassword,
+              name: farmer.name,
+              role: "FARMER",
+              farmerId: farmer.id,
+            },
+          });
+          console.log(`✅ Neuer User für Farmer ${farmer.id} (${trimmedEmail}) wurde angelegt - User ID: ${newUser.id}`);
+        }
+      } catch (userErr: any) {
+        console.error("❌ Fehler beim Anlegen/Aktualisieren des Users:", userErr);
+        console.error("User-Fehler-Code:", userErr.code);
+        console.error("User-Fehler-Message:", userErr.message);
+        console.error("User-Fehler-Meta:", JSON.stringify(userErr.meta, null, 2));
+        // Wir werfen den Fehler weiter, damit der Farmer nicht ohne User erstellt wird
+        throw new Error(`Fehler beim Anlegen des Users: ${userErr.message}`);
+      }
+    } else {
+      console.warn("⚠️ Keine E-Mail angegeben - User wird nicht angelegt");
     }
 
     res.status(201).json(farmer);
