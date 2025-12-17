@@ -382,6 +382,13 @@ export function StammdatenTab(props: StammdatenTabProps) {
                 >
                   🔑 User-Passwort
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setStammdatenFunction("bauern")}
+                  className={`btn-subtab ${stammdatenFunction === "bauern" ? "active" : ""}`}
+                >
+                  👨‍🌾 Bauern anlegen
+                </button>
               </>
             )}
           </div>
@@ -510,192 +517,9 @@ export function StammdatenTab(props: StammdatenTabProps) {
         </ActionCard>
           )}
 
-        </>
-      )}
-
-      {/* Planmengen */}
-      {stammdatenSubTab === "planmengen" && (
-        <>
-          {/* Unter-Navigation für Planmengen */}
-          <div style={{ 
-            display: "flex", 
-            gap: "0.5rem", 
-            marginBottom: "1rem",
-            flexWrap: "wrap",
-          }}>
-            <button
-              type="button"
-              onClick={() => setStammdatenFunction("importieren")}
-              className={`btn-subtab ${stammdatenFunction === "importieren" ? "active" : ""}`}
-            >
-              📥 Importieren
-            </button>
-            <button
-              type="button"
-              onClick={() => setStammdatenFunction("manuell")}
-              className={`btn-subtab ${stammdatenFunction === "manuell" ? "active" : ""}`}
-            >
-              📝 Manuell erfassen
-            </button>
-          </div>
-
-          {/* Planmengen importieren */}
-          {stammdatenFunction === "importieren" && (
-            <ActionCard icon="📥" title="Planmengen importieren">
-        <p style={{ fontSize: "0.9375rem" }}>
-          Liest die Datei <code>planmengen.csv</code> im Server-Ordner ein
-          und speichert die Planmengen in der Datenbank. Nur verwenden,
-          wenn die CSV aktuell und korrekt ist.
-        </p>
-        <button type="button" onClick={handleImportPlansFromCsv} className="btn-action-primary">
-          📥 Planmengen aus CSV importieren
-        </button>
-      </ActionCard>
-          )}
-
-          {/* Planmenge manuell erfassen */}
-          {stammdatenFunction === "manuell" && (
-            <ActionCard icon="📝" title="Planmenge manuell erfassen">
-        <p style={{ fontSize: "0.9375rem" }}>
-          Einzelne Planmenge eintragen oder ändern. Bei Auswahl einer{" "}
-          <strong>Kalenderwoche</strong> wird die Menge direkt eingetragen.
-          Bei Auswahl eines <strong>Monats</strong> wird die Menge gleichmäßig
-          auf alle Kalenderwochen des Monats aufgeteilt.
-        </p>
-        <form onSubmit={handleSavePlanmenge}>
-          <label>Bauer</label>
-          <select
-            value={planFarmerIdInput}
-            onChange={(e) =>
-              setPlanFarmerIdInput(e.target.value ? Number(e.target.value) : "")
-            }
-            required
-            onFocus={openSelectOnFocus}
-          >
-            <option value="">– Bauer wählen –</option>
-            {farmers.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
-
-          <label>Kochtyp</label>
-          <select
-            value={planCookingTypeInput}
-            onChange={(e) =>
-              setPlanCookingTypeInput(e.target.value as CookingType)
-            }
-            required
-            onFocus={openSelectOnFocus}
-          >
-            <option value="FESTKOCHEND">festkochend</option>
-            <option value="VORWIEGEND_FESTKOCHEND">vorw. festk.</option>
-            <option value="MEHLIG">mehlig</option>
-          </select>
-
-          <label>Monat (für Aufteilung auf KWs)</label>
-          <select
-            value={planMonthInput}
-            onChange={(e) => {
-              setPlanMonthInput(e.target.value ? Number(e.target.value) : "");
-              if (e.target.value) setPlanWeekInput(""); // Wenn Monat gewählt, KW zurücksetzen
-            }}
-            onFocus={openSelectOnFocus}
-          >
-            <option value="">– kein Monat –</option>
-            <option value="1">Jänner</option>
-            <option value="2">Februar</option>
-            <option value="3">März</option>
-            <option value="4">April</option>
-            <option value="5">Mai</option>
-            <option value="6">Juni</option>
-            <option value="7">Juli</option>
-            <option value="8">August</option>
-            <option value="9">September</option>
-            <option value="10">Oktober</option>
-            <option value="11">November</option>
-            <option value="12">Dezember</option>
-          </select>
-
-          <label>Kalenderwoche (direkt eintragen)</label>
-          <select
-            value={planWeekInput}
-            onChange={(e) => {
-              setPlanWeekInput(e.target.value ? Number(e.target.value) : "");
-              if (e.target.value) setPlanMonthInput(""); // Wenn KW gewählt, Monat zurücksetzen
-            }}
-            onFocus={openSelectOnFocus}
-          >
-            <option value="">– keine KW –</option>
-            {Array.from({ length: 53 }, (_, i) => i + 1).map((w) => (
-              <option key={w} value={w}>
-                KW {w}
-              </option>
-            ))}
-          </select>
-
-          <label>Geplante Menge (kg)</label>
-          <input
-            type="text"
-            value={planQuantityKgInput}
-            onChange={(e) => setPlanQuantityKgInput(e.target.value)}
-            placeholder="z.B. 5000"
-            required
-          />
-
-          <button type="submit" className="btn-action-primary">
-            💾 Planmenge speichern
-          </button>
-        </form>
-      </ActionCard>
-          )}
-        </>
-      )}
-
-      {/* Stammdaten */}
-      {stammdatenSubTab === "stammdaten" && (
-        <>
-          {/* Unter-Navigation für Stammdaten */}
-          <div style={{ 
-            display: "flex", 
-            gap: "0.5rem", 
-            marginBottom: "1rem",
-            flexWrap: "wrap",
-          }}>
-            <button
-              type="button"
-              onClick={() => setStammdatenFunction("bauern")}
-              className={`btn-subtab ${stammdatenFunction === "bauern" ? "active" : ""}`}
-            >
-              👨‍🌾 Bauern
-            </button>
-            <button
-              type="button"
-              onClick={() => setStammdatenFunction("produkte")}
-              className={`btn-subtab ${stammdatenFunction === "produkte" ? "active" : ""}`}
-            >
-              🥔 Produkte
-            </button>
-            <button
-              type="button"
-              onClick={() => setStammdatenFunction("sorten")}
-              className={`btn-subtab ${stammdatenFunction === "sorten" ? "active" : ""}`}
-            >
-              🌱 Sorten
-            </button>
-            <button
-              type="button"
-              onClick={() => setStammdatenFunction("kunden")}
-              className={`btn-subtab ${stammdatenFunction === "kunden" ? "active" : ""}`}
-            >
-              🏪 Kunden
-            </button>
-          </div>
-
-          {/* Bauern */}
-          {stammdatenFunction === "bauern" && (
-            <ActionCard icon="👨‍🌾" title="Bauern">
+          {/* Bauern anlegen */}
+          {isEgAdmin && stammdatenFunction === "bauern" && (
+            <ActionCard icon="👨‍🌾" title="Bauern anlegen">
         <form onSubmit={handleCreateFarmer}>
           <label>Name</label>
           <input
@@ -900,6 +724,182 @@ export function StammdatenTab(props: StammdatenTabProps) {
         </ul>
       </ActionCard>
           )}
+
+        </>
+      )}
+
+      {/* Planmengen */}
+      {stammdatenSubTab === "planmengen" && (
+        <>
+          {/* Unter-Navigation für Planmengen */}
+          <div style={{ 
+            display: "flex", 
+            gap: "0.5rem", 
+            marginBottom: "1rem",
+            flexWrap: "wrap",
+          }}>
+            <button
+              type="button"
+              onClick={() => setStammdatenFunction("importieren")}
+              className={`btn-subtab ${stammdatenFunction === "importieren" ? "active" : ""}`}
+            >
+              📥 Importieren
+            </button>
+            <button
+              type="button"
+              onClick={() => setStammdatenFunction("manuell")}
+              className={`btn-subtab ${stammdatenFunction === "manuell" ? "active" : ""}`}
+            >
+              📝 Manuell erfassen
+            </button>
+          </div>
+
+          {/* Planmengen importieren */}
+          {stammdatenFunction === "importieren" && (
+            <ActionCard icon="📥" title="Planmengen importieren">
+        <p style={{ fontSize: "0.9375rem" }}>
+          Liest die Datei <code>planmengen.csv</code> im Server-Ordner ein
+          und speichert die Planmengen in der Datenbank. Nur verwenden,
+          wenn die CSV aktuell und korrekt ist.
+        </p>
+        <button type="button" onClick={handleImportPlansFromCsv} className="btn-action-primary">
+          📥 Planmengen aus CSV importieren
+        </button>
+      </ActionCard>
+          )}
+
+          {/* Planmenge manuell erfassen */}
+          {stammdatenFunction === "manuell" && (
+            <ActionCard icon="📝" title="Planmenge manuell erfassen">
+        <p style={{ fontSize: "0.9375rem" }}>
+          Einzelne Planmenge eintragen oder ändern. Bei Auswahl einer{" "}
+          <strong>Kalenderwoche</strong> wird die Menge direkt eingetragen.
+          Bei Auswahl eines <strong>Monats</strong> wird die Menge gleichmäßig
+          auf alle Kalenderwochen des Monats aufgeteilt.
+        </p>
+        <form onSubmit={handleSavePlanmenge}>
+          <label>Bauer</label>
+          <select
+            value={planFarmerIdInput}
+            onChange={(e) =>
+              setPlanFarmerIdInput(e.target.value ? Number(e.target.value) : "")
+            }
+            required
+            onFocus={openSelectOnFocus}
+          >
+            <option value="">– Bauer wählen –</option>
+            {farmers.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+          </select>
+
+          <label>Kochtyp</label>
+          <select
+            value={planCookingTypeInput}
+            onChange={(e) =>
+              setPlanCookingTypeInput(e.target.value as CookingType)
+            }
+            required
+            onFocus={openSelectOnFocus}
+          >
+            <option value="FESTKOCHEND">festkochend</option>
+            <option value="VORWIEGEND_FESTKOCHEND">vorw. festk.</option>
+            <option value="MEHLIG">mehlig</option>
+          </select>
+
+          <label>Monat (für Aufteilung auf KWs)</label>
+          <select
+            value={planMonthInput}
+            onChange={(e) => {
+              setPlanMonthInput(e.target.value ? Number(e.target.value) : "");
+              if (e.target.value) setPlanWeekInput(""); // Wenn Monat gewählt, KW zurücksetzen
+            }}
+            onFocus={openSelectOnFocus}
+          >
+            <option value="">– kein Monat –</option>
+            <option value="1">Jänner</option>
+            <option value="2">Februar</option>
+            <option value="3">März</option>
+            <option value="4">April</option>
+            <option value="5">Mai</option>
+            <option value="6">Juni</option>
+            <option value="7">Juli</option>
+            <option value="8">August</option>
+            <option value="9">September</option>
+            <option value="10">Oktober</option>
+            <option value="11">November</option>
+            <option value="12">Dezember</option>
+          </select>
+
+          <label>Kalenderwoche (direkt eintragen)</label>
+          <select
+            value={planWeekInput}
+            onChange={(e) => {
+              setPlanWeekInput(e.target.value ? Number(e.target.value) : "");
+              if (e.target.value) setPlanMonthInput(""); // Wenn KW gewählt, Monat zurücksetzen
+            }}
+            onFocus={openSelectOnFocus}
+          >
+            <option value="">– keine KW –</option>
+            {Array.from({ length: 53 }, (_, i) => i + 1).map((w) => (
+              <option key={w} value={w}>
+                KW {w}
+              </option>
+            ))}
+          </select>
+
+          <label>Geplante Menge (kg)</label>
+          <input
+            type="text"
+            value={planQuantityKgInput}
+            onChange={(e) => setPlanQuantityKgInput(e.target.value)}
+            placeholder="z.B. 5000"
+            required
+          />
+
+          <button type="submit" className="btn-action-primary">
+            💾 Planmenge speichern
+          </button>
+        </form>
+      </ActionCard>
+          )}
+        </>
+      )}
+
+      {/* Stammdaten */}
+      {stammdatenSubTab === "stammdaten" && (
+        <>
+          {/* Unter-Navigation für Stammdaten */}
+          <div style={{ 
+            display: "flex", 
+            gap: "0.5rem", 
+            marginBottom: "1rem",
+            flexWrap: "wrap",
+          }}>
+            <button
+              type="button"
+              onClick={() => setStammdatenFunction("produkte")}
+              className={`btn-subtab ${stammdatenFunction === "produkte" ? "active" : ""}`}
+            >
+              🥔 Produkte
+            </button>
+            <button
+              type="button"
+              onClick={() => setStammdatenFunction("sorten")}
+              className={`btn-subtab ${stammdatenFunction === "sorten" ? "active" : ""}`}
+            >
+              🌱 Sorten
+            </button>
+            <button
+              type="button"
+              onClick={() => setStammdatenFunction("kunden")}
+              className={`btn-subtab ${stammdatenFunction === "kunden" ? "active" : ""}`}
+            >
+              🏪 Kunden
+            </button>
+          </div>
 
           {/* Produkte */}
           {stammdatenFunction === "produkte" && (
